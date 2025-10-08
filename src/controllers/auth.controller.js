@@ -1,16 +1,12 @@
 const authService = require('../services/auth.service');
 const { successResponse, errorResponse, createdResponse } = require('../utils/responses');
-const { validateRegister, validateLogin, validateChangePassword } = require('../utils/validators');
+const { supabase } = require('../config/database');
 
 const authController = {
   register: async (req, res, next) => {
     try {
-      const { error, value } = validateRegister(req.body);
-      if (error) {
-        return errorResponse(res, error.message, 400, error.details);
-      }
-
-      const result = await authService.register(value);
+      // Validation already done by middleware in routes
+      const result = await authService.register(req.body);
       
       return createdResponse(res, {
         message: 'Registration successful',
@@ -26,12 +22,8 @@ const authController = {
 
   login: async (req, res, next) => {
     try {
-      const { error, value } = validateLogin(req.body);
-      if (error) {
-        return errorResponse(res, error.message, 400, error.details);
-      }
-
-      const result = await authService.login(value.email, value.password);
+      // Validation already done by middleware in routes
+      const result = await authService.login(req.body.email, req.body.password);
       
       return successResponse(res, {
         message: 'Login successful',
@@ -75,15 +67,11 @@ const authController = {
 
   changePassword: async (req, res, next) => {
     try {
-      const { error, value } = validateChangePassword(req.body);
-      if (error) {
-        return errorResponse(res, error.message, 400, error.details);
-      }
-
+      // Validation already done by middleware in routes
       await authService.changePassword(
         req.user.id,
-        value.currentPassword,
-        value.newPassword
+        req.body.currentPassword,
+        req.body.newPassword
       );
       
       return successResponse(res, { 
