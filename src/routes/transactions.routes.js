@@ -1,88 +1,66 @@
-// src/routes/transactions.routes.js
 const express = require('express');
 const router = express.Router();
 const transactionsController = require('../controllers/transactions.controller');
 const { authenticateToken } = require('../middleware/auth');
-const { 
-  validateCreateTransaction, 
-  validateUpdateTransaction,
-  validateTransactionQuery 
-} = require('../utils/validators');
-
-// All routes require authentication
-router.use(authenticateToken);
+const { validateTransaction, validateTransactionUpdate } = require('../utils/validators');
 
 /**
  * @route   POST /api/transactions
- * @desc    Create a new transaction
+ * @desc    Create new transaction
  * @access  Private
  */
 router.post(
   '/',
-  validateCreateTransaction,
+  authenticateToken,
+  validateTransaction,
   transactionsController.createTransaction
 );
 
 /**
- * @route   POST /api/transactions/bulk
- * @desc    Bulk create transactions
- * @access  Private
- */
-router.post(
-  '/bulk',
-  transactionsController.bulkCreateTransactions
-);
-
-/**
  * @route   GET /api/transactions
- * @desc    Get all transactions with filters
+ * @desc    Get all transactions with filters and pagination
  * @access  Private
  */
-router.get(
-  '/',
-  validateTransactionQuery,
-  transactionsController.getTransactions
-);
+router.get('/', authenticateToken, transactionsController.getTransactions);
 
 /**
  * @route   GET /api/transactions/:id
- * @desc    Get a single transaction by ID
+ * @desc    Get single transaction
  * @access  Private
  */
-router.get(
-  '/:id',
-  transactionsController.getTransactionById
-);
+router.get('/:id', authenticateToken, transactionsController.getTransactionById);
 
 /**
  * @route   PUT /api/transactions/:id
- * @desc    Update a transaction
+ * @desc    Update transaction
  * @access  Private
  */
 router.put(
   '/:id',
-  validateUpdateTransaction,
+  authenticateToken,
+  validateTransactionUpdate,
   transactionsController.updateTransaction
 );
 
 /**
- * @route   PUT /api/transactions/:id/reconcile
- * @desc    Toggle reconciliation status
+ * @route   DELETE /api/transactions/:id
+ * @desc    Delete transaction
  * @access  Private
  */
-router.put(
-  '/:id/reconcile',
-  transactionsController.toggleReconciliation
-);
+router.delete('/:id', authenticateToken, transactionsController.deleteTransaction);
 
 /**
- * @route   DELETE /api/transactions/:id
- * @desc    Delete a transaction
+ * @route   PUT /api/transactions/:id/reconcile
+ * @desc    Toggle transaction reconciliation status
  * @access  Private
  */
-router.delete(
-  '/:id',
-  transactionsController.deleteTransaction
-);
+router.put('/:id/reconcile', authenticateToken, transactionsController.reconcileTransaction);
+
+/**
+ * @route   POST /api/transactions/bulk
+ * @desc    Bulk import transactions
+ * @access  Private
+ */
+router.post('/bulk', authenticateToken, transactionsController.bulkImport);
 
 module.exports = router;

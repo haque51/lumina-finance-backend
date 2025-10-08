@@ -1,27 +1,30 @@
-// src/controllers/auth.controller.js
 const authService = require('../services/auth.service');
 const { successResponse, errorResponse } = require('../utils/responses');
 
 class AuthController {
   /**
-   * Register a new user
+   * Register new user
    * POST /api/auth/register
    */
   async register(req, res) {
     try {
-      const { name, email, password, baseCurrency, secondaryCurrencies } = req.body;
-      
+      const { email, password, name, base_currency, secondary_currencies } = req.body;
+
       const result = await authService.register({
-        name,
         email,
         password,
-        baseCurrency,
-        secondaryCurrencies
+        name,
+        base_currency: base_currency || 'EUR',
+        secondary_currencies: secondary_currencies || [],
       });
 
       return successResponse(
         res,
-        result,
+        {
+          user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
         'User registered successfully',
         201
       );
@@ -38,12 +41,16 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password } = req.body;
-      
+
       const result = await authService.login(email, password);
 
       return successResponse(
         res,
-        result,
+        {
+          user: result.user,
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
         'Login successful'
       );
     } catch (error) {
@@ -56,7 +63,7 @@ class AuthController {
    * Refresh access token
    * POST /api/auth/refresh
    */
-  async refreshToken(req, res) {
+  async refresh(req, res) {
     try {
       const { refreshToken } = req.body;
 
@@ -68,7 +75,10 @@ class AuthController {
 
       return successResponse(
         res,
-        result,
+        {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
         'Token refreshed successfully'
       );
     } catch (error) {
@@ -84,14 +94,10 @@ class AuthController {
   async logout(req, res) {
     try {
       const userId = req.user.id;
-      
+
       await authService.logout(userId);
 
-      return successResponse(
-        res,
-        null,
-        'Logout successful'
-      );
+      return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
       return errorResponse(res, error.message, 400);
@@ -99,7 +105,7 @@ class AuthController {
   }
 
   /**
-   * Change user password
+   * Change password
    * POST /api/auth/change-password
    */
   async changePassword(req, res) {
@@ -107,13 +113,13 @@ class AuthController {
       const userId = req.user.id;
       const { currentPassword, newPassword } = req.body;
 
+      if (!currentPassword || !newPassword) {
+        return errorResponse(res, 'Current password and new password are required', 400);
+      }
+
       await authService.changePassword(userId, currentPassword, newPassword);
 
-      return successResponse(
-        res,
-        null,
-        'Password changed successfully'
-      );
+      return successResponse(res, null, 'Password changed successfully');
     } catch (error) {
       console.error('Change password error:', error);
       return errorResponse(res, error.message, 400);
@@ -124,17 +130,13 @@ class AuthController {
    * Get current user
    * GET /api/auth/me
    */
-  async getCurrentUser(req, res) {
+  async me(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const user = await authService.getUserById(userId);
 
-      return successResponse(
-        res,
-        user,
-        'User retrieved successfully'
-      );
+      return successResponse(res, { user }, 'User retrieved successfully');
     } catch (error) {
       console.error('Get user error:', error);
       return errorResponse(res, error.message, 404);

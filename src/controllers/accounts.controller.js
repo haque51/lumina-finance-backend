@@ -1,10 +1,9 @@
-// src/controllers/accounts.controller.js
 const accountService = require('../services/account.service');
 const { successResponse, errorResponse } = require('../utils/responses');
 
 class AccountsController {
   /**
-   * Create a new account
+   * Create new account
    * POST /api/accounts
    */
   async createAccount(req, res) {
@@ -14,12 +13,7 @@ class AccountsController {
 
       const account = await accountService.createAccount(userId, accountData);
 
-      return successResponse(
-        res,
-        account,
-        'Account created successfully',
-        201
-      );
+      return successResponse(res, account, 'Account created successfully', 201);
     } catch (error) {
       console.error('Create account error:', error);
       return errorResponse(res, error.message, 400);
@@ -33,17 +27,23 @@ class AccountsController {
   async getAccounts(req, res) {
     try {
       const userId = req.user.id;
-      const filters = {
-        type: req.query.type,
-        currency: req.query.currency,
-        isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined
-      };
+      const filters = {};
+
+      if (req.query.type) filters.type = req.query.type;
+      if (req.query.currency) filters.currency = req.query.currency;
+      if (req.query.is_active !== undefined) {
+        filters.is_active = req.query.is_active === 'true';
+      }
 
       const accounts = await accountService.getAccounts(userId, filters);
 
       return successResponse(
         res,
-        accounts,
+        {
+          accounts,
+          total: accounts.length,
+          filters,
+        },
         'Accounts retrieved successfully'
       );
     } catch (error) {
@@ -53,74 +53,7 @@ class AccountsController {
   }
 
   /**
-   * Get a single account by ID
-   * GET /api/accounts/:id
-   */
-  async getAccountById(req, res) {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-
-      const account = await accountService.getAccountById(userId, id);
-
-      return successResponse(
-        res,
-        account,
-        'Account retrieved successfully'
-      );
-    } catch (error) {
-      console.error('Get account error:', error);
-      return errorResponse(res, error.message, 404);
-    }
-  }
-
-  /**
-   * Update an account
-   * PUT /api/accounts/:id
-   */
-  async updateAccount(req, res) {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-      const updateData = req.body;
-
-      const account = await accountService.updateAccount(userId, id, updateData);
-
-      return successResponse(
-        res,
-        account,
-        'Account updated successfully'
-      );
-    } catch (error) {
-      console.error('Update account error:', error);
-      return errorResponse(res, error.message, 400);
-    }
-  }
-
-  /**
-   * Delete an account
-   * DELETE /api/accounts/:id
-   */
-  async deleteAccount(req, res) {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-
-      const result = await accountService.deleteAccount(userId, id);
-
-      return successResponse(
-        res,
-        result,
-        'Account deleted successfully'
-      );
-    } catch (error) {
-      console.error('Delete account error:', error);
-      return errorResponse(res, error.message, 400);
-    }
-  }
-
-  /**
-   * Get account summary statistics
+   * Get account summary
    * GET /api/accounts/summary
    */
   async getAccountSummary(req, res) {
@@ -129,13 +62,64 @@ class AccountsController {
 
       const summary = await accountService.getAccountSummary(userId);
 
-      return successResponse(
-        res,
-        summary,
-        'Account summary retrieved successfully'
-      );
+      return successResponse(res, summary, 'Account summary retrieved successfully');
     } catch (error) {
       console.error('Get account summary error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
+
+  /**
+   * Get single account
+   * GET /api/accounts/:id
+   */
+  async getAccountById(req, res) {
+    try {
+      const userId = req.user.id;
+      const accountId = req.params.id;
+
+      const account = await accountService.getAccountById(userId, accountId);
+
+      return successResponse(res, account, 'Account retrieved successfully');
+    } catch (error) {
+      console.error('Get account error:', error);
+      return errorResponse(res, error.message, 404);
+    }
+  }
+
+  /**
+   * Update account
+   * PUT /api/accounts/:id
+   */
+  async updateAccount(req, res) {
+    try {
+      const userId = req.user.id;
+      const accountId = req.params.id;
+      const updateData = req.body;
+
+      const account = await accountService.updateAccount(userId, accountId, updateData);
+
+      return successResponse(res, account, 'Account updated successfully');
+    } catch (error) {
+      console.error('Update account error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
+
+  /**
+   * Delete account
+   * DELETE /api/accounts/:id
+   */
+  async deleteAccount(req, res) {
+    try {
+      const userId = req.user.id;
+      const accountId = req.params.id;
+
+      const result = await accountService.deleteAccount(userId, accountId);
+
+      return successResponse(res, result, 'Account deleted successfully');
+    } catch (error) {
+      console.error('Delete account error:', error);
       return errorResponse(res, error.message, 400);
     }
   }

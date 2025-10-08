@@ -1,13 +1,12 @@
-// src/routes/auth.routes.js
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { authenticateToken } = require('../middleware/auth');
-const { validateRegistration, validateLogin, validateChangePassword } = require('../utils/validators');
+const { validateRegistration, validateLogin } = require('../utils/validators');
 
 /**
  * @route   POST /api/auth/register
- * @desc    Register a new user
+ * @desc    Register new user
  * @access  Public
  */
 router.post('/register', validateRegistration, authController.register);
@@ -24,7 +23,7 @@ router.post('/login', validateLogin, authController.login);
  * @desc    Refresh access token
  * @access  Public
  */
-router.post('/refresh', authController.refreshToken);
+router.post('/refresh', authController.refresh);
 
 /**
  * @route   POST /api/auth/logout
@@ -38,13 +37,13 @@ router.post('/logout', authenticateToken, authController.logout);
  * @desc    Change user password
  * @access  Private
  */
-router.post('/change-password', authenticateToken, validateChangePassword, authController.changePassword);
+router.post('/change-password', authenticateToken, authController.changePassword);
 
 /**
  * @route   GET /api/auth/me
  * @desc    Get current user
  * @access  Private
  */
-router.get('/me', authenticateToken, authController.getCurrentUser);
+router.get('/me', authenticateToken, authController.me);
 
 module.exports = router;
