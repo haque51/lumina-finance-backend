@@ -1,296 +1,227 @@
+// src/utils/validators.js
 const Joi = require('joi');
-const { errorResponse } = require('./responses');
 
-// Account type enum
-const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card', 'loan', 'investment', 'cash'];
+// ==================== AUTH VALIDATORS ====================
 
-// Currency codes
-const CURRENCY_CODES = ['EUR', 'USD', 'BDT', 'GBP', 'JPY', 'INR'];
-
-/**
- * Account validation schema
- */
-const accountSchema = Joi.object({
-  name: Joi.string()
-    .min(1)
-    .max(255)
-    .required()
-    .messages({
-      'string.empty': 'Account name is required',
-      'string.max': 'Account name must be at most 255 characters'
-    }),
-
-  type: Joi.string()
-    .valid(...ACCOUNT_TYPES)
-    .required()
-    .messages({
-      'any.only': `Account type must be one of: ${ACCOUNT_TYPES.join(', ')}`,
-      'any.required': 'Account type is required'
-    }),
-
-  institution: Joi.string()
-    .max(255)
-    .allow(null, '')
-    .optional(),
-
-  currency: Joi.string()
-    .valid(...CURRENCY_CODES)
-    .default('EUR')
-    .messages({
-      'any.only': `Currency must be one of: ${CURRENCY_CODES.join(', ')}`
-    }),
-
-  opening_balance: Joi.number()
-    .default(0)
-    .messages({
-      'number.base': 'Opening balance must be a number'
-    }),
-
-  current_balance: Joi.number()
-    .optional()
-    .messages({
-      'number.base': 'Current balance must be a number'
-    }),
-
-  interest_rate: Joi.number()
-    .min(0)
-    .max(100)
-    .allow(null)
-    .optional()
-    .messages({
-      'number.min': 'Interest rate must be at least 0',
-      'number.max': 'Interest rate cannot exceed 100'
-    }),
-
-  credit_limit: Joi.number()
-    .min(0)
-    .allow(null)
-    .optional()
-    .messages({
-      'number.min': 'Credit limit must be at least 0'
-    }),
-
-  is_active: Joi.boolean()
-    .default(true)
-});
-
-/**
- * Account update validation schema (all fields optional)
- */
-const accountUpdateSchema = Joi.object({
-  name: Joi.string()
-    .min(1)
-    .max(255)
-    .optional()
-    .messages({
-      'string.empty': 'Account name cannot be empty',
-      'string.max': 'Account name must be at most 255 characters'
-    }),
-
-  type: Joi.string()
-    .valid(...ACCOUNT_TYPES)
-    .optional()
-    .messages({
-      'any.only': `Account type must be one of: ${ACCOUNT_TYPES.join(', ')}`
-    }),
-
-  institution: Joi.string()
-    .max(255)
-    .allow(null, '')
-    .optional(),
-
-  currency: Joi.string()
-    .valid(...CURRENCY_CODES)
-    .optional()
-    .messages({
-      'any.only': `Currency must be one of: ${CURRENCY_CODES.join(', ')}`
-    }),
-
-  opening_balance: Joi.number()
-    .optional()
-    .messages({
-      'number.base': 'Opening balance must be a number'
-    }),
-
-  current_balance: Joi.number()
-    .optional()
-    .messages({
-      'number.base': 'Current balance must be a number'
-    }),
-
-  interest_rate: Joi.number()
-    .min(0)
-    .max(100)
-    .allow(null)
-    .optional()
-    .messages({
-      'number.min': 'Interest rate must be at least 0',
-      'number.max': 'Interest rate cannot exceed 100'
-    }),
-
-  credit_limit: Joi.number()
-    .min(0)
-    .allow(null)
-    .optional()
-    .messages({
-      'number.min': 'Credit limit must be at least 0'
-    }),
-
-  is_active: Joi.boolean()
-    .optional()
-}).min(1); // At least one field must be provided for update
-
-/**
- * Registration validation schema
- */
 const registrationSchema = Joi.object({
-  name: Joi.string()
-    .min(2)
-    .max(100)
-    .required()
-    .messages({
-      'string.empty': 'Name is required',
-      'string.min': 'Name must be at least 2 characters',
-      'string.max': 'Name must be at most 100 characters'
-    }),
-
-  email: Joi.string()
-    .email()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Email must be a valid email address'
-    }),
-
+  name: Joi.string().min(2).max(100).required(),
+  email: Joi.string().email().required(),
   password: Joi.string()
     .min(8)
-    .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)'))
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .required()
     .messages({
-      'string.empty': 'Password is required',
-      'string.min': 'Password must be at least 8 characters',
+      'string.min': 'Password must be at least 8 characters long',
       'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
     }),
-
-  base_currency: Joi.string()
-    .valid('EUR', 'USD', 'BDT')
-    .default('EUR')
+  baseCurrency: Joi.string().valid('EUR', 'USD', 'BDT').default('EUR'),
+  secondaryCurrencies: Joi.array().items(Joi.string().valid('EUR', 'USD', 'BDT')).default([])
 });
 
-/**
- * Login validation schema
- */
 const loginSchema = Joi.object({
-  email: Joi.string()
-    .email()
-    .required()
-    .messages({
-      'string.empty': 'Email is required',
-      'string.email': 'Email must be a valid email address'
-    }),
-
-  password: Joi.string()
-    .required()
-    .messages({
-      'string.empty': 'Password is required'
-    })
+  email: Joi.string().email().required(),
+  password: Joi.string().required()
 });
 
-/**
- * Change password validation schema
- */
 const changePasswordSchema = Joi.object({
-  currentPassword: Joi.string()
-    .required()
-    .messages({
-      'string.empty': 'Current password is required'
-    }),
-
+  currentPassword: Joi.string().required(),
   newPassword: Joi.string()
     .min(8)
-    .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)'))
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .required()
-    .messages({
-      'string.empty': 'New password is required',
-      'string.min': 'New password must be at least 8 characters',
-      'string.pattern.base': 'New password must contain at least one uppercase letter, one lowercase letter, and one number'
-    })
 });
 
-/**
- * Middleware to validate registration
- */
+// ==================== ACCOUNT VALIDATORS ====================
+
+const accountSchema = Joi.object({
+  name: Joi.string().min(2).max(100).required(),
+  type: Joi.string().valid('checking', 'savings', 'credit_card', 'loan', 'investment', 'cash').required(),
+  institution: Joi.string().min(2).max(100).required(),
+  currency: Joi.string().valid('EUR', 'USD', 'BDT').required(),
+  openingBalance: Joi.number().default(0),
+  currentBalance: Joi.number().optional(),
+  isActive: Joi.boolean().default(true),
+  interestRate: Joi.number().min(0).max(100).optional(),
+  creditLimit: Joi.number().min(0).optional()
+});
+
+const updateAccountSchema = Joi.object({
+  name: Joi.string().min(2).max(100).optional(),
+  type: Joi.string().valid('checking', 'savings', 'credit_card', 'loan', 'investment', 'cash').optional(),
+  institution: Joi.string().min(2).max(100).optional(),
+  currency: Joi.string().valid('EUR', 'USD', 'BDT').optional(),
+  currentBalance: Joi.number().optional(),
+  isActive: Joi.boolean().optional(),
+  interestRate: Joi.number().min(0).max(100).optional(),
+  creditLimit: Joi.number().min(0).optional()
+}).min(1);
+
+// ==================== TRANSACTION VALIDATORS ====================
+
+const createTransactionSchema = Joi.object({
+  date: Joi.date().required(),
+  type: Joi.string().valid('income', 'expense', 'transfer').required(),
+  
+  // For income/expense
+  accountId: Joi.string().uuid().when('type', {
+    is: Joi.valid('income', 'expense'),
+    then: Joi.required(),
+    otherwise: Joi.forbidden()
+  }),
+  payee: Joi.string().max(255).when('type', {
+    is: Joi.valid('income', 'expense'),
+    then: Joi.optional(),
+    otherwise: Joi.forbidden()
+  }),
+  
+  // For transfer
+  fromAccountId: Joi.string().uuid().when('type', {
+    is: 'transfer',
+    then: Joi.required(),
+    otherwise: Joi.forbidden()
+  }),
+  toAccountId: Joi.string().uuid().when('type', {
+    is: 'transfer',
+    then: Joi.required(),
+    otherwise: Joi.forbidden()
+  }),
+  
+  // Common fields
+  categoryId: Joi.string().uuid().optional().allow(null),
+  amount: Joi.number().positive().required(),
+  currency: Joi.string().valid('EUR', 'USD', 'BDT').optional(),
+  memo: Joi.string().max(500).optional().allow('')
+});
+
+const updateTransactionSchema = Joi.object({
+  date: Joi.date().optional(),
+  type: Joi.string().valid('income', 'expense', 'transfer').optional(),
+  accountId: Joi.string().uuid().optional(),
+  fromAccountId: Joi.string().uuid().optional(),
+  toAccountId: Joi.string().uuid().optional(),
+  payee: Joi.string().max(255).optional().allow(''),
+  categoryId: Joi.string().uuid().optional().allow(null),
+  amount: Joi.number().positive().optional(),
+  currency: Joi.string().valid('EUR', 'USD', 'BDT').optional(),
+  memo: Joi.string().max(500).optional().allow('')
+}).min(1);
+
+const transactionQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(50),
+  type: Joi.string().valid('income', 'expense', 'transfer').optional(),
+  accountId: Joi.string().uuid().optional(),
+  categoryId: Joi.string().uuid().optional(),
+  startDate: Joi.date().optional(),
+  endDate: Joi.date().optional(),
+  minAmount: Joi.number().optional(),
+  maxAmount: Joi.number().optional(),
+  search: Joi.string().max(100).optional(),
+  isReconciled: Joi.string().valid('true', 'false').optional()
+});
+
+// ==================== MIDDLEWARE VALIDATORS ====================
+
 const validateRegistration = (req, res, next) => {
-  const { error } = registrationSchema.validate(req.body, { abortEarly: false });
-  
+  const { error } = registrationSchema.validate(req.body);
   if (error) {
-    const errors = error.details.map(detail => detail.message);
-    return errorResponse(res, 'Validation failed', 400, errors);
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
   }
-  
   next();
 };
 
-/**
- * Middleware to validate login
- */
 const validateLogin = (req, res, next) => {
-  const { error } = loginSchema.validate(req.body, { abortEarly: false });
-  
+  const { error } = loginSchema.validate(req.body);
   if (error) {
-    const errors = error.details.map(detail => detail.message);
-    return errorResponse(res, 'Validation failed', 400, errors);
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
   }
-  
   next();
 };
 
-/**
- * Middleware to validate password change
- */
-const validatePasswordChange = (req, res, next) => {
-  const { error } = changePasswordSchema.validate(req.body, { abortEarly: false });
-  
+const validateChangePassword = (req, res, next) => {
+  const { error } = changePasswordSchema.validate(req.body);
   if (error) {
-    const errors = error.details.map(detail => detail.message);
-    return errorResponse(res, 'Validation failed', 400, errors);
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
   }
-  
   next();
 };
 
-/**
- * Middleware to validate account creation
- */
 const validateAccount = (req, res, next) => {
-  const { error } = accountSchema.validate(req.body, { abortEarly: false });
-  
+  const { error } = accountSchema.validate(req.body);
   if (error) {
-    const errors = error.details.map(detail => detail.message);
-    return errorResponse(res, 'Validation failed', 400, errors);
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
   }
-  
   next();
 };
 
-/**
- * Middleware to validate account update
- */
 const validateAccountUpdate = (req, res, next) => {
-  const { error } = accountUpdateSchema.validate(req.body, { abortEarly: false });
-  
+  const { error } = updateAccountSchema.validate(req.body);
   if (error) {
-    const errors = error.details.map(detail => detail.message);
-    return errorResponse(res, 'Validation failed', 400, errors);
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
   }
-  
+  next();
+};
+
+const validateCreateTransaction = (req, res, next) => {
+  const { error } = createTransactionSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
+  }
+  next();
+};
+
+const validateUpdateTransaction = (req, res, next) => {
+  const { error } = updateTransactionSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
+  }
+  next();
+};
+
+const validateTransactionQuery = (req, res, next) => {
+  const { error } = transactionQuerySchema.validate(req.query);
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details[0].message
+    });
+  }
   next();
 };
 
 module.exports = {
+  // Auth validators
   validateRegistration,
   validateLogin,
-  validatePasswordChange,
+  validateChangePassword,
+  
+  // Account validators
   validateAccount,
-  validateAccountUpdate
+  validateAccountUpdate,
+  
+  // Transaction validators
+  validateCreateTransaction,
+  validateUpdateTransaction,
+  validateTransactionQuery
 };

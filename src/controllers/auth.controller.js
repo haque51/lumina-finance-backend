@@ -1,99 +1,145 @@
+// src/controllers/auth.controller.js
 const authService = require('../services/auth.service');
-const { successResponse, errorResponse, createdResponse } = require('../utils/responses');
-const { supabase } = require('../config/database');
+const { successResponse, errorResponse } = require('../utils/responses');
 
-const authController = {
-  register: async (req, res, next) => {
+class AuthController {
+  /**
+   * Register a new user
+   * POST /api/auth/register
+   */
+  async register(req, res) {
     try {
-      // Validation already done by middleware in routes
-      const result = await authService.register(req.body);
+      const { name, email, password, baseCurrency, secondaryCurrencies } = req.body;
       
-      return createdResponse(res, {
-        message: 'Registration successful',
-        ...result
+      const result = await authService.register({
+        name,
+        email,
+        password,
+        baseCurrency,
+        secondaryCurrencies
       });
-    } catch (error) {
-      if (error.message === 'Email already exists') {
-        return errorResponse(res, error.message, 409);
-      }
-      next(error);
-    }
-  },
 
-  login: async (req, res, next) => {
+      return successResponse(
+        res,
+        result,
+        'User registered successfully',
+        201
+      );
+    } catch (error) {
+      console.error('Registration error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
+
+  /**
+   * Login user
+   * POST /api/auth/login
+   */
+  async login(req, res) {
     try {
-      // Validation already done by middleware in routes
-      const result = await authService.login(req.body.email, req.body.password);
+      const { email, password } = req.body;
       
-      return successResponse(res, {
-        message: 'Login successful',
-        ...result
-      });
-    } catch (error) {
-      if (error.message.includes('Invalid')) {
-        return errorResponse(res, 'Invalid email or password', 401);
-      }
-      next(error);
-    }
-  },
+      const result = await authService.login(email, password);
 
-  refreshToken: async (req, res, next) => {
+      return successResponse(
+        res,
+        result,
+        'Login successful'
+      );
+    } catch (error) {
+      console.error('Login error:', error);
+      return errorResponse(res, error.message, 401);
+    }
+  }
+
+  /**
+   * Refresh access token
+   * POST /api/auth/refresh
+   */
+  async refreshToken(req, res) {
     try {
       const { refreshToken } = req.body;
-      
+
       if (!refreshToken) {
-        return errorResponse(res, 'Refresh token required', 400);
+        return errorResponse(res, 'Refresh token is required', 400);
       }
 
       const result = await authService.refreshToken(refreshToken);
-      
-      return successResponse(res, result);
-    } catch (error) {
-      return errorResponse(res, 'Invalid or expired refresh token', 401);
-    }
-  },
 
-  logout: async (req, res, next) => {
-    try {
-      await supabase.auth.signOut();
-      
-      return successResponse(res, { 
-        message: 'Logout successful' 
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  changePassword: async (req, res, next) => {
-    try {
-      // Validation already done by middleware in routes
-      await authService.changePassword(
-        req.user.id,
-        req.body.currentPassword,
-        req.body.newPassword
+      return successResponse(
+        res,
+        result,
+        'Token refreshed successfully'
       );
-      
-      return successResponse(res, { 
-        message: 'Password changed successfully' 
-      });
     } catch (error) {
-      if (error.message === 'Current password is incorrect') {
-        return errorResponse(res, error.message, 400);
-      }
-      next(error);
-    }
-  },
-
-  getCurrentUser: async (req, res, next) => {
-    try {
-      return successResponse(res, { 
-        user: req.user 
-      });
-    } catch (error) {
-      next(error);
+      console.error('Refresh token error:', error);
+      return errorResponse(res, error.message, 401);
     }
   }
-};
 
-module.exports = authController;
+  /**
+   * Logout user
+   * POST /api/auth/logout
+   */
+  async logout(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      await authService.logout(userId);
+
+      return successResponse(
+        res,
+        null,
+        'Logout successful'
+      );
+    } catch (error) {
+      console.error('Logout error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
+
+  /**
+   * Change user password
+   * POST /api/auth/change-password
+   */
+  async changePassword(req, res) {
+    try {
+      const userId = req.user.id;
+      const { currentPassword, newPassword } = req.body;
+
+      await authService.changePassword(userId, currentPassword, newPassword);
+
+      return successResponse(
+        res,
+        null,
+        'Password changed successfully'
+      );
+    } catch (error) {
+      console.error('Change password error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
+
+  /**
+   * Get current user
+   * GET /api/auth/me
+   */
+  async getCurrentUser(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const user = await authService.getUserById(userId);
+
+      return successResponse(
+        res,
+        user,
+        'User retrieved successfully'
+      );
+    } catch (error) {
+      console.error('Get user error:', error);
+      return errorResponse(res, error.message, 404);
+    }
+  }
+}
+
+module.exports = new AuthController();

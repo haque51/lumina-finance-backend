@@ -1,3 +1,4 @@
+// src/controllers/accounts.controller.js
 const accountService = require('../services/account.service');
 const { successResponse, errorResponse } = require('../utils/responses');
 
@@ -13,15 +14,21 @@ class AccountsController {
 
       const account = await accountService.createAccount(userId, accountData);
 
-      return successResponse(res, account, 'Account created successfully', 201);
+      return successResponse(
+        res,
+        account,
+        'Account created successfully',
+        201
+      );
     } catch (error) {
+      console.error('Create account error:', error);
       return errorResponse(res, error.message, 400);
     }
   }
 
   /**
-   * Get all accounts with optional filters
-   * GET /api/accounts?type=checking&currency=EUR&is_active=true
+   * Get all accounts with filters
+   * GET /api/accounts
    */
   async getAccounts(req, res) {
     try {
@@ -29,13 +36,18 @@ class AccountsController {
       const filters = {
         type: req.query.type,
         currency: req.query.currency,
-        is_active: req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined
+        isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined
       };
 
       const accounts = await accountService.getAccounts(userId, filters);
 
-      return successResponse(res, accounts, 'Accounts retrieved successfully');
+      return successResponse(
+        res,
+        accounts,
+        'Accounts retrieved successfully'
+      );
     } catch (error) {
+      console.error('Get accounts error:', error);
       return errorResponse(res, error.message, 400);
     }
   }
@@ -47,14 +59,18 @@ class AccountsController {
   async getAccountById(req, res) {
     try {
       const userId = req.user.id;
-      const accountId = req.params.id;
+      const { id } = req.params;
 
-      const account = await accountService.getAccountById(userId, accountId);
+      const account = await accountService.getAccountById(userId, id);
 
-      return successResponse(res, account, 'Account retrieved successfully');
+      return successResponse(
+        res,
+        account,
+        'Account retrieved successfully'
+      );
     } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 400;
-      return errorResponse(res, error.message, statusCode);
+      console.error('Get account error:', error);
+      return errorResponse(res, error.message, 404);
     }
   }
 
@@ -65,15 +81,19 @@ class AccountsController {
   async updateAccount(req, res) {
     try {
       const userId = req.user.id;
-      const accountId = req.params.id;
+      const { id } = req.params;
       const updateData = req.body;
 
-      const account = await accountService.updateAccount(userId, accountId, updateData);
+      const account = await accountService.updateAccount(userId, id, updateData);
 
-      return successResponse(res, account, 'Account updated successfully');
+      return successResponse(
+        res,
+        account,
+        'Account updated successfully'
+      );
     } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 400;
-      return errorResponse(res, error.message, statusCode);
+      console.error('Update account error:', error);
+      return errorResponse(res, error.message, 400);
     }
   }
 
@@ -84,15 +104,18 @@ class AccountsController {
   async deleteAccount(req, res) {
     try {
       const userId = req.user.id;
-      const accountId = req.params.id;
+      const { id } = req.params;
 
-      const result = await accountService.deleteAccount(userId, accountId);
+      const result = await accountService.deleteAccount(userId, id);
 
-      return successResponse(res, result, 'Account deleted successfully');
+      return successResponse(
+        res,
+        result,
+        'Account deleted successfully'
+      );
     } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 :
-                        error.message.includes('Cannot delete') ? 409 : 400;
-      return errorResponse(res, error.message, statusCode);
+      console.error('Delete account error:', error);
+      return errorResponse(res, error.message, 400);
     }
   }
 
@@ -106,8 +129,13 @@ class AccountsController {
 
       const summary = await accountService.getAccountSummary(userId);
 
-      return successResponse(res, summary, 'Account summary retrieved successfully');
+      return successResponse(
+        res,
+        summary,
+        'Account summary retrieved successfully'
+      );
     } catch (error) {
+      console.error('Get account summary error:', error);
       return errorResponse(res, error.message, 400);
     }
   }

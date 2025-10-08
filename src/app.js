@@ -1,19 +1,15 @@
+// src/app.js
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-
 const errorHandler = require('./middleware/errorHandler');
-const authRoutes = require('./routes/auth.routes');
-const accountRoutes = require('./routes/accounts.routes');
 
 const app = express();
 
 // Security middleware
 app.use(helmet());
-
-// CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3001',
   credentials: true
@@ -21,69 +17,46 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100 // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 3600000, // 1 hour
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000
 });
 app.use(limiter);
 
-// Body parser middleware
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware
-if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
-}
+app.use(morgan('dev'));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Lumina Finance API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// API routes
+// Basic route
 app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Welcome to Lumina Finance API',
+  res.json({
+    success: true,
+    message: 'Lumina Finance API v1.0',
     version: '1.0.0',
     endpoints: {
-      health: 'GET /health',
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        refresh: 'POST /api/auth/refresh',
-        logout: 'POST /api/auth/logout',
-        changePassword: 'POST /api/auth/change-password',
-        currentUser: 'GET /api/auth/me'
-      },
-      accounts: {
-        create: 'POST /api/accounts',
-        list: 'GET /api/accounts',
-        get: 'GET /api/accounts/:id',
-        update: 'PUT /api/accounts/:id',
-        delete: 'DELETE /api/accounts/:id',
-        summary: 'GET /api/accounts/summary'
-      }
+      health: '/health',
+      auth: '/api/auth',
+      accounts: '/api/accounts',
+      transactions: '/api/transactions'
     }
   });
 });
 
-// Mount routes
-app.use('/api/auth', authRoutes);
-app.use('/api/accounts', accountRoutes);
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: `Route ${req.originalUrl} not found`
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString()
   });
 });
+
+// API Routes
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/accounts', require('./routes/accounts.routes'));
+app.use('/api/transactions', require('./routes/transactions.routes'));
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
