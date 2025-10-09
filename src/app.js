@@ -15,6 +15,8 @@ import accountRoutes from './routes/accounts.routes.js';
 import transactionRoutes from './routes/transactions.routes.js';
 import categoryRoutes from './routes/categories.routes.js';
 import budgetRoutes from './routes/budgets.routes.js';
+import goalsRoutes from './routes/goals.routes.js';
+import recurringRoutes from './routes/recurring.routes.js';
 
 const app = express();
 
@@ -51,7 +53,9 @@ app.get('/', (req, res) => {
       accounts: '/api/accounts',
       transactions: '/api/transactions',
       categories: '/api/categories',
-      budgets: '/api/budgets'
+      budgets: '/api/budgets',
+      goals: '/api/goals',
+      recurring: '/api/recurring'
     }
   });
 });
@@ -65,14 +69,16 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
+// API Routes - ALL routes must come BEFORE error handler
 app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/goals', goalsRoutes);           // ✅ CORRECT! Before error handler
+app.use('/api/recurring', recurringRoutes);   // ✅ CORRECT! Before error handler
 
-// Error handling middleware (must be last)
+// Error handling middleware (MUST BE LAST)
 app.use(errorHandler);
 
 export default app;

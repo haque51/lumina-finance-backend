@@ -296,3 +296,367 @@ export const validateBudgetUpdate = (req, res, next) => {
   }
   next();
 };
+
+// ============================================================
+// GOAL VALIDATORS
+// ============================================================
+
+/**
+ * Validation schema for creating a goal
+ */
+const goalSchema = Joi.object({
+  name: Joi.string()
+    .trim()
+    .min(1)
+    .max(100)
+    .required()
+    .messages({
+      'string.empty': 'Goal name is required',
+      'string.max': 'Goal name must not exceed 100 characters',
+    }),
+
+  target_amount: Joi.number()
+    .positive()
+    .precision(2)
+    .required()
+    .messages({
+      'number.base': 'Target amount must be a number',
+      'number.positive': 'Target amount must be positive',
+    }),
+
+  current_amount: Joi.number()
+    .min(0)
+    .precision(2)
+    .default(0)
+    .messages({
+      'number.base': 'Current amount must be a number',
+      'number.min': 'Current amount cannot be negative',
+    }),
+
+  target_date: Joi.date()
+    .iso()
+    .min('now')
+    .allow(null)
+    .messages({
+      'date.base': 'Target date must be a valid date',
+      'date.min': 'Target date must be in the future',
+    }),
+
+  linked_account_id: Joi.string()
+    .uuid()
+    .allow(null)
+    .messages({
+      'string.guid': 'Linked account ID must be a valid UUID',
+    }),
+});
+
+/**
+ * Validation schema for updating a goal
+ */
+const goalUpdateSchema = Joi.object({
+  name: Joi.string()
+    .trim()
+    .min(1)
+    .max(100)
+    .messages({
+      'string.empty': 'Goal name cannot be empty',
+      'string.max': 'Goal name must not exceed 100 characters',
+    }),
+
+  target_amount: Joi.number()
+    .positive()
+    .precision(2)
+    .messages({
+      'number.base': 'Target amount must be a number',
+      'number.positive': 'Target amount must be positive',
+    }),
+
+  current_amount: Joi.number()
+    .min(0)
+    .precision(2)
+    .messages({
+      'number.base': 'Current amount must be a number',
+      'number.min': 'Current amount cannot be negative',
+    }),
+
+  target_date: Joi.date()
+    .iso()
+    .allow(null)
+    .messages({
+      'date.base': 'Target date must be a valid date',
+    }),
+
+  linked_account_id: Joi.string()
+    .uuid()
+    .allow(null)
+    .messages({
+      'string.guid': 'Linked account ID must be a valid UUID',
+    }),
+}).min(1);
+
+/**
+ * Middleware to validate goal creation
+ */
+export const validateGoal = (req, res, next) => {
+  const { error } = goalSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  
+  next();
+};
+
+/**
+ * Middleware to validate goal update
+ */
+export const validateGoalUpdate = (req, res, next) => {
+  const { error } = goalUpdateSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  
+  next();
+};
+
+// ============================================================
+// RECURRING TRANSACTION VALIDATORS
+// ============================================================
+
+/**
+ * Validation schema for creating a recurring transaction
+ */
+const recurringSchema = Joi.object({
+  name: Joi.string()
+    .trim()
+    .min(1)
+    .max(100)
+    .required()
+    .messages({
+      'string.empty': 'Recurring transaction name is required',
+      'string.max': 'Name must not exceed 100 characters',
+    }),
+
+  account_id: Joi.string()
+    .uuid()
+    .required()
+    .messages({
+      'string.guid': 'Account ID must be a valid UUID',
+      'any.required': 'Account ID is required',
+    }),
+
+  type: Joi.string()
+    .valid('income', 'expense')
+    .required()
+    .messages({
+      'any.only': 'Type must be either "income" or "expense"',
+      'any.required': 'Transaction type is required',
+    }),
+
+  payee: Joi.string()
+    .trim()
+    .max(255)
+    .allow(null, '')
+    .messages({
+      'string.max': 'Payee must not exceed 255 characters',
+    }),
+
+  category_id: Joi.string()
+    .uuid()
+    .allow(null)
+    .messages({
+      'string.guid': 'Category ID must be a valid UUID',
+    }),
+
+  amount: Joi.number()
+    .positive()
+    .precision(2)
+    .required()
+    .messages({
+      'number.base': 'Amount must be a number',
+      'number.positive': 'Amount must be positive',
+      'any.required': 'Amount is required',
+    }),
+
+  currency: Joi.string()
+    .length(3)
+    .uppercase()
+    .messages({
+      'string.length': 'Currency must be a 3-letter code',
+    }),
+
+  frequency: Joi.string()
+    .valid('daily', 'weekly', 'monthly', 'yearly')
+    .required()
+    .messages({
+      'any.only': 'Frequency must be one of: daily, weekly, monthly, yearly',
+      'any.required': 'Frequency is required',
+    }),
+
+  interval: Joi.number()
+    .integer()
+    .min(1)
+    .default(1)
+    .messages({
+      'number.base': 'Interval must be a number',
+      'number.min': 'Interval must be at least 1',
+    }),
+
+  start_date: Joi.date()
+    .iso()
+    .required()
+    .messages({
+      'date.base': 'Start date must be a valid date',
+      'any.required': 'Start date is required',
+    }),
+
+  end_date: Joi.date()
+    .iso()
+    .min(Joi.ref('start_date'))
+    .allow(null)
+    .messages({
+      'date.base': 'End date must be a valid date',
+      'date.min': 'End date must be after start date',
+    }),
+
+  is_active: Joi.boolean()
+    .default(true)
+    .messages({
+      'boolean.base': 'is_active must be a boolean',
+    }),
+});
+
+/**
+ * Validation schema for updating a recurring transaction
+ */
+const recurringUpdateSchema = Joi.object({
+  name: Joi.string()
+    .trim()
+    .min(1)
+    .max(100)
+    .messages({
+      'string.empty': 'Name cannot be empty',
+      'string.max': 'Name must not exceed 100 characters',
+    }),
+
+  account_id: Joi.string()
+    .uuid()
+    .messages({
+      'string.guid': 'Account ID must be a valid UUID',
+    }),
+
+  type: Joi.string()
+    .valid('income', 'expense')
+    .messages({
+      'any.only': 'Type must be either "income" or "expense"',
+    }),
+
+  payee: Joi.string()
+    .trim()
+    .max(255)
+    .allow(null, '')
+    .messages({
+      'string.max': 'Payee must not exceed 255 characters',
+    }),
+
+  category_id: Joi.string()
+    .uuid()
+    .allow(null)
+    .messages({
+      'string.guid': 'Category ID must be a valid UUID',
+    }),
+
+  amount: Joi.number()
+    .positive()
+    .precision(2)
+    .messages({
+      'number.base': 'Amount must be a number',
+      'number.positive': 'Amount must be positive',
+    }),
+
+  currency: Joi.string()
+    .length(3)
+    .uppercase()
+    .messages({
+      'string.length': 'Currency must be a 3-letter code',
+    }),
+
+  frequency: Joi.string()
+    .valid('daily', 'weekly', 'monthly', 'yearly')
+    .messages({
+      'any.only': 'Frequency must be one of: daily, weekly, monthly, yearly',
+    }),
+
+  interval: Joi.number()
+    .integer()
+    .min(1)
+    .messages({
+      'number.base': 'Interval must be a number',
+      'number.min': 'Interval must be at least 1',
+    }),
+
+  start_date: Joi.date()
+    .iso()
+    .messages({
+      'date.base': 'Start date must be a valid date',
+    }),
+
+  end_date: Joi.date()
+    .iso()
+    .allow(null)
+    .messages({
+      'date.base': 'End date must be a valid date',
+    }),
+
+  is_active: Joi.boolean()
+    .messages({
+      'boolean.base': 'is_active must be a boolean',
+    }),
+}).min(1);
+
+/**
+ * Middleware to validate recurring transaction creation
+ */
+export const validateRecurring = (req, res, next) => {
+  const { error } = recurringSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  
+  next();
+};
+
+/**
+ * Middleware to validate recurring transaction update
+ */
+export const validateRecurringUpdate = (req, res, next) => {
+  const { error } = recurringUpdateSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  
+  next();
+};
