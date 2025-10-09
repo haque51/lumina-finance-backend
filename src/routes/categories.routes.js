@@ -1,11 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const categoriesController = require('../controllers/categories.controller');
-const { authenticateToken } = require('../middleware/auth');
-const {
-  validateCategory,
-  validateCategoryUpdate,
-} = require('../utils/validators');
+import categoriesController from '../controllers/categories.controller.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { validateCategory, validateCategoryUpdate } from '../utils/validators.js';
 
 /**
  * @route   POST /api/categories
@@ -65,4 +62,4 @@ router.get(
   categoriesController.getCategorySpending
 );
 
-module.exports = router;
+export default router;

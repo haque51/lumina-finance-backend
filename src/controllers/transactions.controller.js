@@ -1,175 +1,96 @@
-const transactionService = require('../services/transaction.service');
-const { successResponse, errorResponse } = require('../utils/responses');
+// src/controllers/transactions.controller.js
+
+import transactionService from '../services/transaction.service.js';
+import { successResponse, errorResponse } from '../utils/responses.js';
 
 class TransactionsController {
-  /**
-   * Create new transaction
-   * POST /api/transactions
-   */
   async createTransaction(req, res) {
     try {
-      const userId = req.user.id;
-      const transactionData = req.body;
-
-      const transaction = await transactionService.createTransaction(
-        userId,
-        transactionData
-      );
-
+      const transaction = await transactionService.createTransaction(req.user.id, req.body);
       return successResponse(res, transaction, 'Transaction created successfully', 201);
     } catch (error) {
-      console.error('Create transaction error:', error);
+      console.error('Error creating transaction:', error);
       return errorResponse(res, error.message, 400);
     }
   }
 
-  /**
-   * Get all transactions with filters
-   * GET /api/transactions
-   */
   async getTransactions(req, res) {
     try {
-      const userId = req.user.id;
-      const filters = {};
+      const filters = {
+        type: req.query.type,
+        account_id: req.query.account_id,
+        category_id: req.query.category_id,
+        start_date: req.query.start_date,
+        end_date: req.query.end_date,
+        min_amount: req.query.min_amount,
+        max_amount: req.query.max_amount,
+        search: req.query.search
+      };
       const pagination = {
         page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 10,
+        limit: parseInt(req.query.limit) || 10
       };
-
-      // Extract filters from query params
-      if (req.query.type) filters.type = req.query.type;
-      if (req.query.account_id) filters.account_id = req.query.account_id;
-      if (req.query.category_id) filters.category_id = req.query.category_id;
-      if (req.query.start_date) filters.start_date = req.query.start_date;
-      if (req.query.end_date) filters.end_date = req.query.end_date;
-      if (req.query.min_amount) filters.min_amount = parseFloat(req.query.min_amount);
-      if (req.query.max_amount) filters.max_amount = parseFloat(req.query.max_amount);
-      if (req.query.search) filters.search = req.query.search;
-      if (req.query.is_reconciled !== undefined) {
-        filters.is_reconciled = req.query.is_reconciled === 'true';
-      }
-
-      const result = await transactionService.getTransactions(
-        userId,
-        filters,
-        pagination
-      );
-
+      const result = await transactionService.getTransactions(req.user.id, filters, pagination);
       return successResponse(res, result, 'Transactions retrieved successfully');
     } catch (error) {
-      console.error('Get transactions error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error fetching transactions:', error);
+      return errorResponse(res, error.message, 500);
     }
   }
 
-  /**
-   * Get single transaction
-   * GET /api/transactions/:id
-   */
   async getTransactionById(req, res) {
     try {
-      const userId = req.user.id;
-      const transactionId = req.params.id;
-
-      const transaction = await transactionService.getTransactionById(
-        userId,
-        transactionId
-      );
-
+      const transaction = await transactionService.getTransactionById(req.user.id, req.params.id);
       return successResponse(res, transaction, 'Transaction retrieved successfully');
     } catch (error) {
-      console.error('Get transaction error:', error);
-      return errorResponse(res, error.message, 404);
+      console.error('Error fetching transaction:', error);
+      const statusCode = error.message === 'Transaction not found' ? 404 : 500;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Update transaction
-   * PUT /api/transactions/:id
-   */
   async updateTransaction(req, res) {
     try {
-      const userId = req.user.id;
-      const transactionId = req.params.id;
-      const updateData = req.body;
-
-      const transaction = await transactionService.updateTransaction(
-        userId,
-        transactionId,
-        updateData
-      );
-
+      const transaction = await transactionService.updateTransaction(req.user.id, req.params.id, req.body);
       return successResponse(res, transaction, 'Transaction updated successfully');
     } catch (error) {
-      console.error('Update transaction error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error updating transaction:', error);
+      const statusCode = error.message === 'Transaction not found' ? 404 : 400;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Delete transaction
-   * DELETE /api/transactions/:id
-   */
   async deleteTransaction(req, res) {
     try {
-      const userId = req.user.id;
-      const transactionId = req.params.id;
-
-      const result = await transactionService.deleteTransaction(userId, transactionId);
-
+      const result = await transactionService.deleteTransaction(req.user.id, req.params.id);
       return successResponse(res, result, 'Transaction deleted successfully');
     } catch (error) {
-      console.error('Delete transaction error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error deleting transaction:', error);
+      const statusCode = error.message === 'Transaction not found' ? 404 : 500;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Toggle reconciliation status
-   * PUT /api/transactions/:id/reconcile
-   */
-  async reconcileTransaction(req, res) {
+  async toggleReconciliation(req, res) {
     try {
-      const userId = req.user.id;
-      const transactionId = req.params.id;
-
-      const transaction = await transactionService.reconcileTransaction(
-        userId,
-        transactionId
-      );
-
-      return successResponse(
-        res,
-        transaction,
-        `Transaction ${transaction.is_reconciled ? 'reconciled' : 'unreconciled'} successfully`
-      );
+      const transaction = await transactionService.toggleReconciliation(req.user.id, req.params.id);
+      return successResponse(res, transaction, 'Transaction reconciliation toggled successfully');
     } catch (error) {
-      console.error('Reconcile transaction error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error toggling reconciliation:', error);
+      const statusCode = error.message === 'Transaction not found' ? 404 : 500;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Bulk import transactions
-   * POST /api/transactions/bulk
-   */
   async bulkImport(req, res) {
     try {
-      const userId = req.user.id;
-      const { transactions } = req.body;
-
-      if (!Array.isArray(transactions) || transactions.length === 0) {
-        return errorResponse(res, 'Transactions array is required', 400);
-      }
-
-      const result = await transactionService.bulkImport(userId, transactions);
-
+      const result = await transactionService.bulkImport(req.user.id, req.body.transactions);
       return successResponse(res, result, 'Transactions imported successfully', 201);
     } catch (error) {
-      console.error('Bulk import error:', error);
+      console.error('Error importing transactions:', error);
       return errorResponse(res, error.message, 400);
     }
   }
 }
 
-module.exports = new TransactionsController();
+export default new TransactionsController();

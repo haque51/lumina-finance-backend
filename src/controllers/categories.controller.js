@@ -1,148 +1,74 @@
-const categoryService = require('../services/category.service');
-const { successResponse, errorResponse } = require('../utils/responses');
+// src/controllers/categories.controller.js
+
+import categoryService from '../services/category.service.js';
+import { successResponse, errorResponse } from '../utils/responses.js';
 
 class CategoriesController {
-  /**
-   * Create new category
-   * POST /api/categories
-   */
   async createCategory(req, res) {
     try {
-      const userId = req.user.id;
-      const categoryData = req.body;
-
-      const category = await categoryService.createCategory(userId, categoryData);
-
+      const category = await categoryService.createCategory(req.user.id, req.body);
       return successResponse(res, category, 'Category created successfully', 201);
     } catch (error) {
-      console.error('Create category error:', error);
+      console.error('Error creating category:', error);
       return errorResponse(res, error.message, 400);
     }
   }
 
-  /**
-   * Get all categories
-   * GET /api/categories?type=income&parent_id=null
-   */
   async getCategories(req, res) {
     try {
-      const userId = req.user.id;
-      const filters = {};
-
-      // Extract query parameters
-      if (req.query.type) {
-        filters.type = req.query.type;
-      }
-
-      if (req.query.parent_id !== undefined) {
-        filters.parent_id = req.query.parent_id === 'null' ? null : req.query.parent_id;
-      }
-
-      const categories = await categoryService.getCategories(userId, filters);
-
-      return successResponse(
-        res,
-        {
-          categories,
-          total: categories.length,
-          filters,
-        },
-        'Categories retrieved successfully'
-      );
+      const filters = {
+        type: req.query.type
+      };
+      const categories = await categoryService.getCategories(req.user.id, filters);
+      return successResponse(res, categories, 'Categories retrieved successfully');
     } catch (error) {
-      console.error('Get categories error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error fetching categories:', error);
+      return errorResponse(res, error.message, 500);
     }
   }
 
-  /**
-   * Get single category by ID
-   * GET /api/categories/:id
-   */
   async getCategoryById(req, res) {
     try {
-      const userId = req.user.id;
-      const categoryId = req.params.id;
-
-      const category = await categoryService.getCategoryById(userId, categoryId);
-
+      const category = await categoryService.getCategoryById(req.user.id, req.params.id);
       return successResponse(res, category, 'Category retrieved successfully');
     } catch (error) {
-      console.error('Get category error:', error);
-      return errorResponse(res, error.message, 404);
+      console.error('Error fetching category:', error);
+      const statusCode = error.message === 'Category not found' ? 404 : 500;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Update category
-   * PUT /api/categories/:id
-   */
   async updateCategory(req, res) {
     try {
-      const userId = req.user.id;
-      const categoryId = req.params.id;
-      const updateData = req.body;
-
-      const category = await categoryService.updateCategory(
-        userId,
-        categoryId,
-        updateData
-      );
-
+      const category = await categoryService.updateCategory(req.user.id, req.params.id, req.body);
       return successResponse(res, category, 'Category updated successfully');
     } catch (error) {
-      console.error('Update category error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error updating category:', error);
+      const statusCode = error.message === 'Category not found' ? 404 : 400;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Delete category
-   * DELETE /api/categories/:id
-   */
   async deleteCategory(req, res) {
     try {
-      const userId = req.user.id;
-      const categoryId = req.params.id;
-
-      const result = await categoryService.deleteCategory(userId, categoryId);
-
+      const result = await categoryService.deleteCategory(req.user.id, req.params.id);
       return successResponse(res, result, 'Category deleted successfully');
     } catch (error) {
-      console.error('Delete category error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error deleting category:', error);
+      const statusCode = error.message === 'Category not found' ? 404 : 400;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Get category spending statistics
-   * GET /api/categories/:id/spending?start_date=2025-01-01&end_date=2025-12-31
-   */
   async getCategorySpending(req, res) {
     try {
-      const userId = req.user.id;
-      const categoryId = req.params.id;
-      const dateRange = {};
-
-      if (req.query.start_date) {
-        dateRange.start_date = req.query.start_date;
-      }
-      if (req.query.end_date) {
-        dateRange.end_date = req.query.end_date;
-      }
-
-      const spending = await categoryService.getCategorySpending(
-        userId,
-        categoryId,
-        dateRange
-      );
-
+      const spending = await categoryService.getCategorySpending(req.user.id, req.params.id);
       return successResponse(res, spending, 'Category spending retrieved successfully');
     } catch (error) {
-      console.error('Get category spending error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error fetching category spending:', error);
+      return errorResponse(res, error.message, 500);
     }
   }
 }
 
-module.exports = new CategoriesController();
+export default new CategoriesController();

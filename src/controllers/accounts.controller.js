@@ -1,128 +1,76 @@
-const accountService = require('../services/account.service');
-const { successResponse, errorResponse } = require('../utils/responses');
+// src/controllers/accounts.controller.js
+
+import accountService from '../services/account.service.js';
+import { successResponse, errorResponse } from '../utils/responses.js';
 
 class AccountsController {
-  /**
-   * Create new account
-   * POST /api/accounts
-   */
   async createAccount(req, res) {
     try {
-      const userId = req.user.id;
-      const accountData = req.body;
-
-      const account = await accountService.createAccount(userId, accountData);
-
+      const account = await accountService.createAccount(req.user.id, req.body);
       return successResponse(res, account, 'Account created successfully', 201);
     } catch (error) {
-      console.error('Create account error:', error);
+      console.error('Error creating account:', error);
       return errorResponse(res, error.message, 400);
     }
   }
 
-  /**
-   * Get all accounts with filters
-   * GET /api/accounts
-   */
   async getAccounts(req, res) {
     try {
-      const userId = req.user.id;
-      const filters = {};
-
-      if (req.query.type) filters.type = req.query.type;
-      if (req.query.currency) filters.currency = req.query.currency;
-      if (req.query.is_active !== undefined) {
-        filters.is_active = req.query.is_active === 'true';
-      }
-
-      const accounts = await accountService.getAccounts(userId, filters);
-
-      return successResponse(
-        res,
-        {
-          accounts,
-          total: accounts.length,
-          filters,
-        },
-        'Accounts retrieved successfully'
-      );
+      const filters = {
+        type: req.query.type,
+        currency: req.query.currency,
+        is_active: req.query.is_active
+      };
+      const accounts = await accountService.getAccounts(req.user.id, filters);
+      return successResponse(res, accounts, 'Accounts retrieved successfully');
     } catch (error) {
-      console.error('Get accounts error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error fetching accounts:', error);
+      return errorResponse(res, error.message, 500);
     }
   }
 
-  /**
-   * Get account summary
-   * GET /api/accounts/summary
-   */
-  async getAccountSummary(req, res) {
-    try {
-      const userId = req.user.id;
-
-      const summary = await accountService.getAccountSummary(userId);
-
-      return successResponse(res, summary, 'Account summary retrieved successfully');
-    } catch (error) {
-      console.error('Get account summary error:', error);
-      return errorResponse(res, error.message, 400);
-    }
-  }
-
-  /**
-   * Get single account
-   * GET /api/accounts/:id
-   */
   async getAccountById(req, res) {
     try {
-      const userId = req.user.id;
-      const accountId = req.params.id;
-
-      const account = await accountService.getAccountById(userId, accountId);
-
+      const account = await accountService.getAccountById(req.user.id, req.params.id);
       return successResponse(res, account, 'Account retrieved successfully');
     } catch (error) {
-      console.error('Get account error:', error);
-      return errorResponse(res, error.message, 404);
+      console.error('Error fetching account:', error);
+      const statusCode = error.message === 'Account not found' ? 404 : 500;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Update account
-   * PUT /api/accounts/:id
-   */
   async updateAccount(req, res) {
     try {
-      const userId = req.user.id;
-      const accountId = req.params.id;
-      const updateData = req.body;
-
-      const account = await accountService.updateAccount(userId, accountId, updateData);
-
+      const account = await accountService.updateAccount(req.user.id, req.params.id, req.body);
       return successResponse(res, account, 'Account updated successfully');
     } catch (error) {
-      console.error('Update account error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error updating account:', error);
+      const statusCode = error.message === 'Account not found' ? 404 : 400;
+      return errorResponse(res, error.message, statusCode);
     }
   }
 
-  /**
-   * Delete account
-   * DELETE /api/accounts/:id
-   */
   async deleteAccount(req, res) {
     try {
-      const userId = req.user.id;
-      const accountId = req.params.id;
-
-      const result = await accountService.deleteAccount(userId, accountId);
-
+      const result = await accountService.deleteAccount(req.user.id, req.params.id);
       return successResponse(res, result, 'Account deleted successfully');
     } catch (error) {
-      console.error('Delete account error:', error);
-      return errorResponse(res, error.message, 400);
+      console.error('Error deleting account:', error);
+      const statusCode = error.message === 'Account not found' ? 404 : 400;
+      return errorResponse(res, error.message, statusCode);
+    }
+  }
+
+  async getAccountSummary(req, res) {
+    try {
+      const summary = await accountService.getAccountSummary(req.user.id);
+      return successResponse(res, summary, 'Account summary retrieved successfully');
+    } catch (error) {
+      console.error('Error fetching account summary:', error);
+      return errorResponse(res, error.message, 500);
     }
   }
 }
 
-module.exports = new AccountsController();
+export default new AccountsController();

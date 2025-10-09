@@ -1,8 +1,11 @@
-const express = require('express');
+// src/routes/auth.routes.js
+
+import express from 'express';
+import authController from '../controllers/auth.controller.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { validateRegistration, validateLogin } from '../utils/validators.js';
+
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
-const { authenticateToken } = require('../middleware/auth');
-const { validateRegistration, validateLogin } = require('../utils/validators');
 
 /**
  * @route   POST /api/auth/register
@@ -46,4 +49,4 @@ router.post('/change-password', authenticateToken, authController.changePassword
  */
 router.get('/me', authenticateToken, authController.me);
 
-module.exports = router;
+export default router;

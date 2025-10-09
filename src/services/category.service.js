@@ -1,384 +1,298 @@
-const { supabase } = require('../config/database');
+// src/services/category.service.js
+
+import { supabase } from '../config/database.js';
 
 class CategoryService {
-  /**
-   * Create a new category
-   */
   async createCategory(userId, categoryData) {
-    const { name, type, parent_id, icon } = categoryData;
+    try {
+      // Validate parent category if provided
+      if (categoryData.parent_id) {
+        const { data: parent } = await supabase
+          .from('categories')
+          .select('type')
+          .eq('id', categoryData.parent_id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .single();
 
-    // If parent_id provided, validate parent exists and is same type
-    if (parent_id) {
-      const { data: parent, error: parentError } = await supabase
+        if (!parent) {
+          throw new Error('Parent category not found');
+        }
+
+        if (parent.type !== categoryData.type) {
+          throw new Error('Parent category type must match child category type');
+        }
+      }
+
+      // Create category
+      const { data: category, error } = await supabase
         .from('categories')
-        .select('id, type, user_id')
-        .eq('id', parent_id)
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .single();
-
-      if (parentError || !parent) {
-        throw new Error('Parent category not found');
-      }
-
-      if (parent.type !== type) {
-        throw new Error('Parent category must be same type (income/expense)');
-      }
-    }
-
-    // Create category
-    const { data, error } = await supabase
-      .from('categories')
-      .insert([
-        {
+        .insert({
           user_id: userId,
-          name,
-          type,
-          parent_id: parent_id || null,
-          icon: icon || null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create category: ${error.message}`);
-    }
-
-    return data;
-  }
-
-  /**
-   * Get all categories for a user with hierarchy
-   */
-  async getCategories(userId, filters = {}) {
-    let query = supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', userId)
-      .is('deleted_at', null);
-
-    // Apply filters
-    if (filters.type) {
-      query = query.eq('type', filters.type);
-    }
-
-    if (filters.parent_id !== undefined) {
-      if (filters.parent_id === null) {
-        query = query.is('parent_id', null);
-      } else {
-        query = query.eq('parent_id', filters.parent_id);
-      }
-    }
-
-    // Order by name
-    query = query.order('name', { ascending: true });
-
-    const { data, error } = await query;
-
-    if (error) {
-      throw new Error(`Failed to fetch categories: ${error.message}`);
-    }
-
-    // Build hierarchy
-    const categories = this._buildHierarchy(data);
-
-    return categories;
-  }
-
-  /**
-   * Get single category by ID
-   */
-  async getCategoryById(userId, categoryId) {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .single();
-
-    if (error || !data) {
-      throw new Error('Category not found');
-    }
-
-    // Get transaction count
-    const { count } = await supabase
-      .from('transactions')
-      .select('*', { count: 'exact', head: true })
-      .eq('category_id', categoryId)
-      .is('deleted_at', null);
-
-    // Get subcategories count
-    const { count: subcategoriesCount } = await supabase
-      .from('categories')
-      .select('*', { count: 'exact', head: true })
-      .eq('parent_id', categoryId)
-      .is('deleted_at', null);
-
-    // Get parent category if exists
-    let parent = null;
-    if (data.parent_id) {
-      const { data: parentData } = await supabase
-        .from('categories')
-        .select('id, name, icon, type')
-        .eq('id', data.parent_id)
+          name: categoryData.name,
+          type: categoryData.type,
+          parent_id: categoryData.parent_id || null,
+          icon: categoryData.icon || '📁'
+        })
+        .select()
         .single();
-      parent = parentData;
-    }
 
-    return {
-      ...data,
-      transaction_count: count || 0,
-      subcategories_count: subcategoriesCount || 0,
-      parent,
-    };
+      if (error) throw error;
+
+      return category;
+    } catch (error) {
+      throw error;
+    }
   }
 
-  /**
-   * Update category
-   */
-  async updateCategory(userId, categoryId, updateData) {
-    // Verify category exists and belongs to user
-    const { data: existing, error: fetchError } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .single();
+  async getCategories(userId, filters = {}) {
+    try {
+      let query = supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .order('name', { ascending: true });
 
-    if (fetchError || !existing) {
-      throw new Error('Category not found');
-    }
-
-    // If updating parent_id, validate it
-    if (updateData.parent_id !== undefined && updateData.parent_id !== null) {
-      // Cannot set self as parent
-      if (updateData.parent_id === categoryId) {
-        throw new Error('Category cannot be its own parent');
+      if (filters.type) {
+        query = query.eq('type', filters.type);
       }
 
-      // Validate parent exists and is same type
-      const { data: parent, error: parentError } = await supabase
+      const { data: categories, error } = await query;
+
+      if (error) throw error;
+
+      // Build hierarchy
+      const categoryMap = new Map();
+      const rootCategories = [];
+
+      categories.forEach(cat => {
+        categoryMap.set(cat.id, { ...cat, subcategories: [] });
+      });
+
+      categories.forEach(cat => {
+        const category = categoryMap.get(cat.id);
+        if (cat.parent_id) {
+          const parent = categoryMap.get(cat.parent_id);
+          if (parent) {
+            parent.subcategories.push(category);
+          }
+        } else {
+          rootCategories.push(category);
+        }
+      });
+
+      return rootCategories;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCategoryById(userId, categoryId) {
+    try {
+      const { data: category, error } = await supabase
         .from('categories')
-        .select('id, type')
-        .eq('id', updateData.parent_id)
+        .select('*')
+        .eq('id', categoryId)
         .eq('user_id', userId)
         .is('deleted_at', null)
         .single();
 
-      if (parentError || !parent) {
-        throw new Error('Parent category not found');
+      if (error || !category) {
+        throw new Error('Category not found');
       }
 
-      const targetType = updateData.type || existing.type;
-      if (parent.type !== targetType) {
-        throw new Error('Parent category must be same type (income/expense)');
-      }
-
-      // Check for circular reference (parent cannot be a child of this category)
-      const isCircular = await this._checkCircularReference(
-        userId,
-        categoryId,
-        updateData.parent_id
-      );
-      if (isCircular) {
-        throw new Error('Circular parent-child reference detected');
-      }
-    }
-
-    // If changing type, check if subcategories exist
-    if (updateData.type && updateData.type !== existing.type) {
-      const { count } = await supabase
+      // Get subcategories
+      const { data: subcategories } = await supabase
         .from('categories')
-        .select('*', { count: 'exact', head: true })
+        .select('*')
         .eq('parent_id', categoryId)
+        .eq('user_id', userId)
+        .is('deleted_at', null);
+
+      // Get transaction count
+      const { count } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('category_id', categoryId)
+        .is('deleted_at', null);
+
+      return {
+        ...category,
+        subcategories: subcategories || [],
+        transaction_count: count || 0
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateCategory(userId, categoryId, updates) {
+    try {
+      // Check if category exists
+      const { data: existing } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', categoryId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .single();
+
+      if (!existing) {
+        throw new Error('Category not found');
+      }
+
+      // Validate parent if being updated
+      if (updates.parent_id !== undefined) {
+        if (updates.parent_id === categoryId) {
+          throw new Error('Category cannot be its own parent');
+        }
+
+        if (updates.parent_id) {
+          const { data: parent } = await supabase
+            .from('categories')
+            .select('type, parent_id')
+            .eq('id', updates.parent_id)
+            .eq('user_id', userId)
+            .is('deleted_at', null)
+            .single();
+
+          if (!parent) {
+            throw new Error('Parent category not found');
+          }
+
+          if (parent.type !== existing.type) {
+            throw new Error('Parent category type must match');
+          }
+
+          // Check for circular reference
+          if (await this.wouldCreateCircularReference(userId, categoryId, updates.parent_id)) {
+            throw new Error('This would create a circular reference');
+          }
+        }
+      }
+
+      // Update category
+      const { data: category, error } = await supabase
+        .from('categories')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', categoryId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return category;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async deleteCategory(userId, categoryId) {
+    try {
+      // Check if category has subcategories
+      const { data: subcategories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', categoryId)
+        .eq('user_id', userId)
+        .is('deleted_at', null);
+
+      if (subcategories && subcategories.length > 0) {
+        throw new Error('Cannot delete category with subcategories');
+      }
+
+      // Check if category has transactions
+      const { count } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('category_id', categoryId)
         .is('deleted_at', null);
 
       if (count > 0) {
-        throw new Error('Cannot change type of category with subcategories');
+        throw new Error(`Cannot delete category with ${count} associated transactions`);
       }
+
+      // Soft delete
+      const { error } = await supabase
+        .from('categories')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', categoryId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      return { message: 'Category deleted successfully' };
+    } catch (error) {
+      throw error;
     }
-
-    // Update category
-    const { data, error } = await supabase
-      .from('categories')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update category: ${error.message}`);
-    }
-
-    return data;
   }
 
-  /**
-   * Delete category (soft delete)
-   */
-  async deleteCategory(userId, categoryId) {
-    // Verify category exists and belongs to user
-    const { data: existing, error: fetchError } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .single();
+  async getCategorySpending(userId, categoryId) {
+    try {
+      const { data: category } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', categoryId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .single();
 
-    if (fetchError || !existing) {
-      throw new Error('Category not found');
-    }
+      if (!category) {
+        throw new Error('Category not found');
+      }
 
-    // Check if category has transactions
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('category_id', categoryId)
-      .is('deleted_at', null);
+      // Get transactions for this category
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('amount, date')
+        .eq('user_id', userId)
+        .eq('category_id', categoryId)
+        .is('deleted_at', null)
+        .order('date', { ascending: false });
 
-    if (transactions && transactions.length > 0) {
-      throw new Error(
-        `Cannot delete category with ${transactions.length} associated transactions`
-      );
-    }
+      if (error) throw error;
 
-    // Check if category has subcategories
-    const { data: subcategories } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('parent_id', categoryId)
-      .is('deleted_at', null);
+      const totalSpent = Math.abs(transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0));
 
-    if (subcategories && subcategories.length > 0) {
-      throw new Error(
-        `Cannot delete category with ${subcategories.length} subcategories`
-      );
-    }
-
-    // Soft delete
-    const { data, error } = await supabase
-      .from('categories')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to delete category: ${error.message}`);
-    }
-
-    return { message: 'Category deleted successfully' };
-  }
-
-  /**
-   * Get category spending statistics
-   */
-  async getCategorySpending(userId, categoryId, dateRange = {}) {
-    // Verify category exists
-    const { data: category, error: catError } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', categoryId)
-      .eq('user_id', userId)
-      .is('deleted_at', null)
-      .single();
-
-    if (catError || !category) {
-      throw new Error('Category not found');
-    }
-
-    // Build query for transactions
-    let query = supabase
-      .from('transactions')
-      .select('amount, date, payee')
-      .eq('category_id', categoryId)
-      .eq('user_id', userId)
-      .is('deleted_at', null);
-
-    // Apply date filters
-    if (dateRange.start_date) {
-      query = query.gte('date', dateRange.start_date);
-    }
-    if (dateRange.end_date) {
-      query = query.lte('date', dateRange.end_date);
-    }
-
-    const { data: transactions, error } = await query;
-
-    if (error) {
-      throw new Error(`Failed to fetch spending data: ${error.message}`);
-    }
-
-    // Calculate statistics
-    const totalAmount = transactions.reduce(
-      (sum, txn) => sum + Math.abs(txn.amount),
-      0
-    );
-    const transactionCount = transactions.length;
-    const averageAmount = transactionCount > 0 ? totalAmount / transactionCount : 0;
-
-    // Get monthly breakdown
-    const monthlyBreakdown = this._getMonthlyBreakdown(transactions);
-
-    return {
-      category,
-      total_amount: totalAmount,
-      transaction_count: transactionCount,
-      average_amount: averageAmount,
-      monthly_breakdown: monthlyBreakdown,
-      date_range: {
-        start: dateRange.start_date || null,
-        end: dateRange.end_date || null,
-      },
-    };
-  }
-
-  /**
-   * Build category hierarchy
-   */
-  _buildHierarchy(categories) {
-    const categoryMap = new Map();
-    const rootCategories = [];
-
-    // First pass: create map
-    categories.forEach((cat) => {
-      categoryMap.set(cat.id, { ...cat, subcategories: [] });
-    });
-
-    // Second pass: build hierarchy
-    categories.forEach((cat) => {
-      if (cat.parent_id) {
-        const parent = categoryMap.get(cat.parent_id);
-        if (parent) {
-          parent.subcategories.push(categoryMap.get(cat.id));
+      // Group by month
+      const byMonth = {};
+      transactions.forEach(t => {
+        const month = t.date.substring(0, 7);
+        if (!byMonth[month]) {
+          byMonth[month] = 0;
         }
-      } else {
-        rootCategories.push(categoryMap.get(cat.id));
-      }
-    });
+        byMonth[month] += Math.abs(parseFloat(t.amount));
+      });
 
-    return rootCategories;
+      return {
+        category,
+        total_spent: totalSpent,
+        transaction_count: transactions.length,
+        by_month: byMonth
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
-  /**
-   * Check for circular reference in parent-child relationship
-   */
-  async _checkCircularReference(userId, categoryId, newParentId) {
+  async wouldCreateCircularReference(userId, categoryId, newParentId) {
     let currentId = newParentId;
-    const visited = new Set([categoryId]);
+    const visited = new Set();
 
     while (currentId) {
+      if (currentId === categoryId) {
+        return true;
+      }
+
       if (visited.has(currentId)) {
-        return true; // Circular reference detected
+        return true;
       }
 
       visited.add(currentId);
@@ -391,37 +305,11 @@ class CategoryService {
         .is('deleted_at', null)
         .single();
 
-      if (!data || !data.parent_id) {
-        break;
-      }
-
-      currentId = data.parent_id;
+      currentId = data?.parent_id;
     }
 
     return false;
   }
-
-  /**
-   * Get monthly spending breakdown
-   */
-  _getMonthlyBreakdown(transactions) {
-    const breakdown = {};
-
-    transactions.forEach((txn) => {
-      const month = txn.date.substring(0, 7); // YYYY-MM
-      if (!breakdown[month]) {
-        breakdown[month] = {
-          month,
-          total: 0,
-          count: 0,
-        };
-      }
-      breakdown[month].total += Math.abs(txn.amount);
-      breakdown[month].count += 1;
-    });
-
-    return Object.values(breakdown).sort((a, b) => b.month.localeCompare(a.month));
-  }
 }
 
-module.exports = new CategoryService();
+export default new CategoryService();

@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const transactionsController = require('../controllers/transactions.controller');
-const { authenticateToken } = require('../middleware/auth');
-const { validateTransaction, validateTransactionUpdate } = require('../utils/validators');
+import transactionsController from '../controllers/transactions.controller.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { validateTransaction, validateTransactionUpdate } from '../utils/validators.js';
 
 /**
  * @route   POST /api/transactions
@@ -54,7 +54,7 @@ router.delete('/:id', authenticateToken, transactionsController.deleteTransactio
  * @desc    Toggle transaction reconciliation status
  * @access  Private
  */
-router.put('/:id/reconcile', authenticateToken, transactionsController.reconcileTransaction);
+router.put('/:id/reconcile', authenticateToken, transactionsController.toggleReconciliation);
 
 /**
  * @route   POST /api/transactions/bulk
@@ -63,4 +63,4 @@ router.put('/:id/reconcile', authenticateToken, transactionsController.reconcile
  */
 router.post('/bulk', authenticateToken, transactionsController.bulkImport);
 
-module.exports = router;
+export default router;

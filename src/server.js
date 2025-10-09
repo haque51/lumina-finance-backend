@@ -1,25 +1,41 @@
-const app = require('./app');
-const { testConnection } = require('./config/database');
+// src/server.js
+
+import dotenv from 'dotenv';
+import app from './app.js';
+import { supabase } from './config/database.js';
+
+// Load environment variables
+dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-const startServer = async () => {
+// Test database connection
+async function testDatabaseConnection() {
   try {
-    console.log('🔌 Testing database...');
-    await testConnection();
-
-    app.listen(PORT, () => {
-      console.log('\n' + '='.repeat(50));
-      console.log('🚀 Lumina Finance API Started!');
-      console.log('='.repeat(50));
-      console.log(`🌐 Server: http://localhost:${PORT}`);
-      console.log(`💚 Health: http://localhost:${PORT}/health`);
-      console.log('='.repeat(50) + '\n');
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.warn('Database connection warning:', error.message);
+    } else {
+      console.log('✅ Database connected successfully');
+    }
   } catch (error) {
-    console.error('❌ Startup failed:', error.message);
-    process.exit(1);
+    console.error('❌ Database connection failed:', error.message);
   }
-};
+}
 
-startServer();
+// Start server
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  await testDatabaseConnection();
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+  process.exit(1);
+});

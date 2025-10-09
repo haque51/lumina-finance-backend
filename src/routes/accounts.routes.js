@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const accountsController = require('../controllers/accounts.controller');
-const { authenticateToken } = require('../middleware/auth');
-const { validateAccount, validateAccountUpdate } = require('../utils/validators');
+import accountsController from '../controllers/accounts.controller.js';
+import { authenticateToken } from '../middleware/auth.js';
+import { validateAccount, validateAccountUpdate } from '../utils/validators.js';
 
 /**
  * @route   POST /api/accounts
@@ -51,4 +51,4 @@ router.put(
  */
 router.delete('/:id', authenticateToken, accountsController.deleteAccount);
 
-module.exports = router;
+export default router;

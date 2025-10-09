@@ -1,4 +1,6 @@
-const successResponse = (res, data, message = 'Success', statusCode = 200) => {
+// src/utils/responses.js
+
+export const successResponse = (res, data, message = 'Success', statusCode = 200) => {
   return res.status(statusCode).json({
     status: 'success',
     message,
@@ -6,24 +8,9 @@ const successResponse = (res, data, message = 'Success', statusCode = 200) => {
   });
 };
 
-const errorResponse = (res, message, statusCode = 400, details = null) => {
+export const errorResponse = (res, error, statusCode = 500) => {
   return res.status(statusCode).json({
     status: 'error',
-    error: message,
-    ...(details && { details })
+    error: error
   });
-};
-
-const createdResponse = (res, data, message = 'Resource created successfully') => {
-  return res.status(201).json({
-    status: 'success',
-    message,
-    data
-  });
-};
-
-module.exports = {
-  successResponse,
-  errorResponse,
-  createdResponse
 };

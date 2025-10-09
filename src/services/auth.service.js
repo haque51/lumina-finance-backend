@@ -1,204 +1,188 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { supabase } = require('../config/database');
+// src/services/auth.service.js
 
-const authService = {
-  register: async ({ email, password, name }) => {
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { supabase } from '../config/database.js';
+
+class AuthService {
+  async register(userData) {
     try {
+      const { email, password, name } = userData;
+
+      // Check if user already exists
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
         .eq('email', email)
-        .is('deleted_at', null)
         .single();
 
       if (existingUser) {
-        throw new Error('Email already exists');
+        throw new Error('User already exists');
       }
 
+      // Create user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            name: name || email.split('@')[0]
+          }
+        }
       });
 
-      if (authError) {
-        console.error('Supabase Auth error:', authError);
-        throw new Error('Failed to create authentication account');
-      }
+      if (authError) throw authError;
 
-      const { data: user, error: dbError } = await supabase
+      // Insert user into our users table
+      const { data: user, error: userError } = await supabase
         .from('users')
-        .insert([{
+        .insert({
           id: authData.user.id,
           email,
-          name,
+          name: name || email.split('@')[0],
           base_currency: 'EUR',
-          secondary_currencies: ['USD', 'BDT'],
-          theme: 'light',
-          monthly_income_goal: 5000,
-          monthly_savings_goal: 1000,
-          auto_backup: true
-        }])
+          secondary_currencies: ['USD', 'BDT']
+        })
         .select()
         .single();
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw new Error('Failed to create user profile');
-      }
+      if (userError) throw userError;
 
-      const accessToken = generateAccessToken(user.id);
-      const refreshToken = generateRefreshToken(user.id);
+      // Generate tokens
+      const accessToken = this.generateAccessToken(user);
+      const refreshToken = this.generateRefreshToken(user);
 
       return {
-        user: sanitizeUser(user),
+        user: this.sanitizeUser(user),
         accessToken,
         refreshToken
       };
     } catch (error) {
-      console.error('Registration error:', error);
       throw error;
     }
-  },
+  }
 
-  login: async (email, password) => {
+  async login(credentials) {
     try {
+      const { email, password } = credentials;
+
+      // Authenticate with Supabase
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw new Error('Invalid email or password');
-      }
+      if (authError) throw new Error('Invalid credentials');
 
-      const { data: user, error: dbError } = await supabase
+      // Get user from our table
+      const { data: user, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', authData.user.id)
-        .is('deleted_at', null)
         .single();
 
-      if (dbError || !user) {
-        console.error('Database error:', dbError);
-        throw new Error('User not found');
-      }
+      if (userError) throw userError;
 
-      const accessToken = generateAccessToken(user.id);
-      const refreshToken = generateRefreshToken(user.id);
+      // Generate tokens
+      const accessToken = this.generateAccessToken(user);
+      const refreshToken = this.generateRefreshToken(user);
 
       return {
-        user: sanitizeUser(user),
+        user: this.sanitizeUser(user),
         accessToken,
         refreshToken
       };
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
-  },
+  }
 
-  refreshToken: async (refreshToken) => {
+  async refreshToken(token) {
     try {
-      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', decoded.userId)
-        .is('deleted_at', null)
+        .eq('id', decoded.id)
         .single();
 
-      if (error || !user) {
-        throw new Error('Invalid refresh token');
-      }
+      if (error) throw new Error('Invalid refresh token');
 
-      const accessToken = generateAccessToken(user.id);
+      const accessToken = this.generateAccessToken(user);
+      const newRefreshToken = this.generateRefreshToken(user);
 
       return {
         accessToken,
-        user: sanitizeUser(user)
+        refreshToken: newRefreshToken
       };
     } catch (error) {
-      console.error('Refresh token error:', error);
-      throw new Error('Invalid or expired refresh token');
+      throw new Error('Invalid refresh token');
     }
-  },
+  }
 
-  changePassword: async (userId, currentPassword, newPassword) => {
+  async logout(userId) {
     try {
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('email')
-        .eq('id', userId)
-        .single();
-
-      if (error || !user) {
-        throw new Error('User not found');
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword
-      });
-
-      if (signInError) {
-        throw new Error('Current password is incorrect');
-      }
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) {
-        throw new Error('Failed to update password');
-      }
-
-      return true;
+      await supabase.auth.signOut();
+      return { message: 'Logged out successfully' };
     } catch (error) {
-      console.error('Change password error:', error);
       throw error;
     }
   }
-};
 
-function generateAccessToken(userId) {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+  async changePassword(userId, passwordData) {
+    try {
+      const { currentPassword, newPassword } = passwordData;
+
+      // Update password in Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      return { message: 'Password changed successfully' };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getCurrentUser(userId) {
+    try {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      return this.sanitizeUser(user);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  generateAccessToken(user) {
+    return jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+  }
+
+  generateRefreshToken(user) {
+    return jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
+    );
+  }
+
+  sanitizeUser(user) {
+    const { ...sanitized } = user;
+    return sanitized;
+  }
 }
 
-function generateRefreshToken(userId) {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
-  );
-}
-
-function sanitizeUser(user) {
-  const {
-    created_at,
-    updated_at,
-    deleted_at,
-    ...sanitized
-  } = user;
-
-  return {
-    id: sanitized.id,
-    email: sanitized.email,
-    name: sanitized.name,
-    theme: sanitized.theme,
-    baseCurrency: sanitized.base_currency,
-    secondaryCurrencies: sanitized.secondary_currencies || [],
-    monthlyIncomeGoal: sanitized.monthly_income_goal,
-    monthlySavingsGoal: sanitized.monthly_savings_goal,
-    defaultAccountId: sanitized.default_account_id,
-    autoBackup: sanitized.auto_backup
-  };
-}
-
-module.exports = authService;
+export default new AuthService();
