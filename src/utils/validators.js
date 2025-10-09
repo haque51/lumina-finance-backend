@@ -1,337 +1,298 @@
-const Joi = require('joi');
+// src/utils/validators.js
 
-// ==================== AUTH VALIDATORS ====================
+import Joi from 'joi';
+
+// ============= AUTH VALIDATORS =============
 
 const registrationSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required',
-  }),
-  password: Joi.string().min(8).required().messages({
-    'string.min': 'Password must be at least 8 characters long',
-    'any.required': 'Password is required',
-  }),
-  name: Joi.string().min(2).max(100).required().messages({
-    'string.min': 'Name must be at least 2 characters long',
-    'string.max': 'Name cannot exceed 100 characters',
-    'any.required': 'Name is required',
-  }),
-  base_currency: Joi.string().length(3).default('EUR').messages({
-    'string.length': 'Currency code must be exactly 3 characters',
-  }),
-  secondary_currencies: Joi.array().items(Joi.string().length(3)).default([]).messages({
-    'string.length': 'Currency codes must be exactly 3 characters',
-  }),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required()
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .messages({
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    }),
+  name: Joi.string().min(2).max(100).optional()
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    'string.email': 'Please provide a valid email address',
-    'any.required': 'Email is required',
-  }),
-  password: Joi.string().required().messages({
-    'any.required': 'Password is required',
-  }),
+  email: Joi.string().email().required(),
+  password: Joi.string().required()
 });
 
-// ==================== ACCOUNT VALIDATORS ====================
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(8).required()
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .messages({
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    })
+});
+
+// ============= ACCOUNT VALIDATORS =============
 
 const accountSchema = Joi.object({
-  name: Joi.string().min(2).max(100).required().messages({
-    'string.empty': 'Account name is required',
-    'string.min': 'Account name must be at least 2 characters',
-    'string.max': 'Account name cannot exceed 100 characters',
-  }),
-  type: Joi.string()
-    .valid('checking', 'savings', 'credit_card', 'loan', 'investment', 'cash')
-    .required()
-    .messages({
-      'any.only': 'Invalid account type',
-      'any.required': 'Account type is required',
-    }),
-  institution: Joi.string().min(2).max(100).required().messages({
-    'string.empty': 'Institution name is required',
-    'string.min': 'Institution name must be at least 2 characters',
-    'string.max': 'Institution name cannot exceed 100 characters',
-  }),
-  currency: Joi.string().length(3).required().messages({
-    'string.length': 'Currency code must be exactly 3 characters',
-    'any.required': 'Currency is required',
-  }),
-  opening_balance: Joi.number().default(0).messages({
-    'number.base': 'Opening balance must be a number',
-  }),
-  interest_rate: Joi.number().min(0).max(100).optional().allow(null).messages({
-    'number.min': 'Interest rate cannot be negative',
-    'number.max': 'Interest rate cannot exceed 100%',
-  }),
-  credit_limit: Joi.number().min(0).optional().allow(null).messages({
-    'number.min': 'Credit limit cannot be negative',
-  }),
-  is_active: Joi.boolean().default(true),
+  name: Joi.string().required(),
+  type: Joi.string().valid('checking', 'savings', 'credit_card', 'loan', 'investment', 'cash').required(),
+  institution: Joi.string().required(),
+  currency: Joi.string().length(3).required(),
+  opening_balance: Joi.number().required(),
+  interest_rate: Joi.number().optional(),
+  credit_limit: Joi.number().optional(),
+  is_active: Joi.boolean().optional()
 });
 
-const updateAccountSchema = Joi.object({
-  name: Joi.string().min(2).max(100).optional().messages({
-    'string.min': 'Account name must be at least 2 characters',
-    'string.max': 'Account name cannot exceed 100 characters',
-  }),
-  institution: Joi.string().min(2).max(100).optional().messages({
-    'string.min': 'Institution name must be at least 2 characters',
-    'string.max': 'Institution name cannot exceed 100 characters',
-  }),
-  currency: Joi.string().length(3).optional().messages({
-    'string.length': 'Currency code must be exactly 3 characters',
-  }),
-  current_balance: Joi.number().optional().messages({
-    'number.base': 'Current balance must be a number',
-  }),
-  interest_rate: Joi.number().min(0).max(100).optional().allow(null).messages({
-    'number.min': 'Interest rate cannot be negative',
-    'number.max': 'Interest rate cannot exceed 100%',
-  }),
-  credit_limit: Joi.number().min(0).optional().allow(null).messages({
-    'number.min': 'Credit limit cannot be negative',
-  }),
-  is_active: Joi.boolean().optional(),
-})
-  .min(1)
-  .messages({
-    'object.min': 'At least one field must be provided for update',
-  });
+const accountUpdateSchema = Joi.object({
+  name: Joi.string().optional(),
+  institution: Joi.string().optional(),
+  currency: Joi.string().length(3).optional(),
+  current_balance: Joi.number().optional(),
+  interest_rate: Joi.number().optional(),
+  credit_limit: Joi.number().optional(),
+  is_active: Joi.boolean().optional()
+}).min(1);
 
-// ==================== TRANSACTION VALIDATORS ====================
+// ============= TRANSACTION VALIDATORS =============
 
 const transactionSchema = Joi.object({
-  type: Joi.string().valid('income', 'expense', 'transfer').required().messages({
-    'any.only': 'Type must be income, expense, or transfer',
-    'any.required': 'Transaction type is required',
+  date: Joi.date().required(),
+  type: Joi.string().valid('income', 'expense', 'transfer').required(),
+  account_id: Joi.string().uuid().when('type', {
+    is: Joi.string().valid('income', 'expense'),
+    then: Joi.required(),
+    otherwise: Joi.optional()
   }),
-  date: Joi.date().iso().required().messages({
-    'date.format': 'Date must be in ISO format (YYYY-MM-DD)',
-    'any.required': 'Transaction date is required',
-  }),
-  amount: Joi.number().required().messages({
-    'number.base': 'Amount must be a number',
-    'any.required': 'Amount is required',
-  }),
-  currency: Joi.string().length(3).required().messages({
-    'string.length': 'Currency code must be exactly 3 characters',
-    'any.required': 'Currency is required',
-  }),
-  account_id: Joi.when('type', {
-    is: Joi.valid('income', 'expense'),
-    then: Joi.string().uuid().required().messages({
-      'string.guid': 'Account ID must be a valid UUID',
-      'any.required': 'Account ID is required for income/expense transactions',
-    }),
-    otherwise: Joi.forbidden(),
-  }),
-  from_account_id: Joi.when('type', {
+  from_account_id: Joi.string().uuid().when('type', {
     is: 'transfer',
-    then: Joi.string().uuid().required().messages({
-      'string.guid': 'From account ID must be a valid UUID',
-      'any.required': 'From account ID is required for transfers',
-    }),
-    otherwise: Joi.forbidden(),
+    then: Joi.required(),
+    otherwise: Joi.optional()
   }),
-  to_account_id: Joi.when('type', {
+  to_account_id: Joi.string().uuid().when('type', {
     is: 'transfer',
-    then: Joi.string().uuid().required().messages({
-      'string.guid': 'To account ID must be a valid UUID',
-      'any.required': 'To account ID is required for transfers',
-    }),
-    otherwise: Joi.forbidden(),
+    then: Joi.required(),
+    otherwise: Joi.optional()
   }),
-  category_id: Joi.string().uuid().optional().allow(null).messages({
-    'string.guid': 'Category ID must be a valid UUID',
-  }),
-  payee: Joi.string().max(255).optional().allow('', null).messages({
-    'string.max': 'Payee cannot exceed 255 characters',
-  }),
-  memo: Joi.string().max(500).optional().allow('', null).messages({
-    'string.max': 'Memo cannot exceed 500 characters',
-  }),
-  is_reconciled: Joi.boolean().default(false),
+  payee: Joi.string().optional(),
+  category_id: Joi.string().uuid().optional(),
+  amount: Joi.number().required(),
+  currency: Joi.string().length(3).required(),
+  memo: Joi.string().optional()
 });
 
-const updateTransactionSchema = Joi.object({
-  type: Joi.string().valid('income', 'expense', 'transfer').optional().messages({
-    'any.only': 'Type must be income, expense, or transfer',
-  }),
-  date: Joi.date().iso().optional().messages({
-    'date.format': 'Date must be in ISO format (YYYY-MM-DD)',
-  }),
-  amount: Joi.number().optional().messages({
-    'number.base': 'Amount must be a number',
-  }),
-  currency: Joi.string().length(3).optional().messages({
-    'string.length': 'Currency code must be exactly 3 characters',
-  }),
-  account_id: Joi.string().uuid().optional().messages({
-    'string.guid': 'Account ID must be a valid UUID',
-  }),
-  from_account_id: Joi.string().uuid().optional().messages({
-    'string.guid': 'From account ID must be a valid UUID',
-  }),
-  to_account_id: Joi.string().uuid().optional().messages({
-    'string.guid': 'To account ID must be a valid UUID',
-  }),
-  category_id: Joi.string().uuid().optional().allow(null).messages({
-    'string.guid': 'Category ID must be a valid UUID',
-  }),
-  payee: Joi.string().max(255).optional().allow('', null).messages({
-    'string.max': 'Payee cannot exceed 255 characters',
-  }),
-  memo: Joi.string().max(500).optional().allow('', null).messages({
-    'string.max': 'Memo cannot exceed 500 characters',
-  }),
-  is_reconciled: Joi.boolean().optional(),
-})
-  .min(1)
-  .messages({
-    'object.min': 'At least one field must be provided for update',
-  });
+const transactionUpdateSchema = Joi.object({
+  date: Joi.date().optional(),
+  payee: Joi.string().optional(),
+  category_id: Joi.string().uuid().optional(),
+  amount: Joi.number().optional(),
+  memo: Joi.string().optional()
+}).min(1);
 
-// ==================== CATEGORY VALIDATORS ====================
+// ============= CATEGORY VALIDATORS =============
 
 const categorySchema = Joi.object({
-  name: Joi.string().min(2).max(100).required().messages({
-    'string.empty': 'Category name is required',
-    'string.min': 'Category name must be at least 2 characters',
-    'string.max': 'Category name cannot exceed 100 characters',
-  }),
-  type: Joi.string().valid('income', 'expense').required().messages({
-    'any.only': 'Type must be either income or expense',
-    'any.required': 'Category type is required',
-  }),
-  parent_id: Joi.string().uuid().optional().allow(null).messages({
-    'string.guid': 'Parent ID must be a valid UUID',
-  }),
-  icon: Joi.string().max(10).optional().allow('', null).messages({
-    'string.max': 'Icon cannot exceed 10 characters',
-  }),
+  name: Joi.string().required(),
+  type: Joi.string().valid('income', 'expense').required(),
+  parent_id: Joi.string().uuid().optional().allow(null),
+  icon: Joi.string().optional()
 });
 
-const updateCategorySchema = Joi.object({
-  name: Joi.string().min(2).max(100).optional().messages({
-    'string.min': 'Category name must be at least 2 characters',
-    'string.max': 'Category name cannot exceed 100 characters',
-  }),
-  type: Joi.string().valid('income', 'expense').optional().messages({
-    'any.only': 'Type must be either income or expense',
-  }),
-  parent_id: Joi.string().uuid().optional().allow(null).messages({
-    'string.guid': 'Parent ID must be a valid UUID',
-  }),
-  icon: Joi.string().max(10).optional().allow('', null).messages({
-    'string.max': 'Icon cannot exceed 10 characters',
-  }),
-})
-  .min(1)
-  .messages({
-    'object.min': 'At least one field must be provided for update',
-  });
+const categoryUpdateSchema = Joi.object({
+  name: Joi.string().optional(),
+  parent_id: Joi.string().uuid().optional().allow(null),
+  icon: Joi.string().optional()
+}).min(1);
 
-// ==================== VALIDATION MIDDLEWARE ====================
+// ============= BUDGET VALIDATORS =============
 
-const validateRegistration = (req, res, next) => {
+const budgetSchema = Joi.object({
+  month: Joi.string()
+    .pattern(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'Month must be in YYYY-MM format',
+      'any.required': 'Month is required'
+    }),
+  category_id: Joi.string()
+    .uuid()
+    .required()
+    .messages({
+      'string.uuid': 'Category ID must be a valid UUID',
+      'any.required': 'Category ID is required'
+    }),
+  budgeted: Joi.number()
+    .positive()
+    .precision(2)
+    .required()
+    .messages({
+      'number.positive': 'Budget amount must be positive',
+      'any.required': 'Budget amount is required'
+    })
+});
+
+const budgetUpdateSchema = Joi.object({
+  month: Joi.string()
+    .pattern(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Month must be in YYYY-MM format'
+    }),
+  category_id: Joi.string()
+    .uuid()
+    .optional()
+    .messages({
+      'string.uuid': 'Category ID must be a valid UUID'
+    }),
+  budgeted: Joi.number()
+    .positive()
+    .precision(2)
+    .optional()
+    .messages({
+      'number.positive': 'Budget amount must be positive'
+    })
+}).min(1).messages({
+  'object.min': 'At least one field must be provided for update'
+});
+
+// ============= VALIDATION MIDDLEWARE =============
+
+export const validateRegistration = (req, res, next) => {
   const { error } = registrationSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateLogin = (req, res, next) => {
+export const validateLogin = (req, res, next) => {
   const { error } = loginSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateAccount = (req, res, next) => {
+export const validateChangePassword = (req, res, next) => {
+  const { error } = changePasswordSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  next();
+};
+
+export const validateAccount = (req, res, next) => {
   const { error } = accountSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateAccountUpdate = (req, res, next) => {
-  const { error } = updateAccountSchema.validate(req.body, { abortEarly: false });
+export const validateAccountUpdate = (req, res, next) => {
+  const { error } = accountUpdateSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateTransaction = (req, res, next) => {
+export const validateTransaction = (req, res, next) => {
   const { error } = transactionSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateTransactionUpdate = (req, res, next) => {
-  const { error } = updateTransactionSchema.validate(req.body, { abortEarly: false });
+export const validateTransactionUpdate = (req, res, next) => {
+  const { error } = transactionUpdateSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateCategory = (req, res, next) => {
+export const validateCategory = (req, res, next) => {
   const { error } = categorySchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-const validateCategoryUpdate = (req, res, next) => {
-  const { error } = updateCategorySchema.validate(req.body, { abortEarly: false });
+export const validateCategoryUpdate = (req, res, next) => {
+  const { error } = categoryUpdateSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    const errors = error.details.map(detail => detail.message);
     return res.status(400).json({
       status: 'error',
-      error: error.details.map((detail) => detail.message).join(', '),
+      error: 'Validation failed',
+      details: errors
     });
   }
   next();
 };
 
-// ==================== EXPORTS ====================
+export const validateBudget = (req, res, next) => {
+  const { error } = budgetSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  next();
+};
 
-module.exports = {
-  validateRegistration,
-  validateLogin,
-  validateAccount,
-  validateAccountUpdate,
-  validateTransaction,
-  validateTransactionUpdate,
-  validateCategory,
-  validateCategoryUpdate,
+export const validateBudgetUpdate = (req, res, next) => {
+  const { error } = budgetUpdateSchema.validate(req.body, { abortEarly: false });
+  if (error) {
+    const errors = error.details.map(detail => detail.message);
+    return res.status(400).json({
+      status: 'error',
+      error: 'Validation failed',
+      details: errors
+    });
+  }
+  next();
 };

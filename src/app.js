@@ -1,10 +1,20 @@
 // src/app.js
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-const errorHandler = require('./middleware/errorHandler');
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+
+// Import middleware
+import errorHandler from './middleware/errorHandler.js';
+
+// Import routes
+import authRoutes from './routes/auth.routes.js';
+import accountRoutes from './routes/accounts.routes.js';
+import transactionRoutes from './routes/transactions.routes.js';
+import categoryRoutes from './routes/categories.routes.js';
+import budgetRoutes from './routes/budgets.routes.js';
 
 const app = express();
 
@@ -39,7 +49,9 @@ app.get('/', (req, res) => {
       health: '/health',
       auth: '/api/auth',
       accounts: '/api/accounts',
-      transactions: '/api/transactions'
+      transactions: '/api/transactions',
+      categories: '/api/categories',
+      budgets: '/api/budgets'
     }
   });
 });
@@ -54,11 +66,13 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/accounts', require('./routes/accounts.routes'));
-app.use('/api/transactions', require('./routes/transactions.routes'));
-app.use('/api/categories', require('./routes/categories.routes'));
+app.use('/api/auth', authRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/budgets', budgetRoutes);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-module.exports = app;
+export default app;
