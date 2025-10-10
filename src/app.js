@@ -18,6 +18,9 @@ import budgetRoutes from './routes/budgets.routes.js';
 import goalsRoutes from './routes/goals.routes.js';
 import recurringRoutes from './routes/recurring.routes.js';
 
+import analyticsRoutes from './routes/analytics.routes.js';
+import currencyRoutes from './routes/currency.routes.js';
+
 const app = express();
 
 // Security middleware
@@ -77,6 +80,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/goals', goalsRoutes);           // ✅ CORRECT! Before error handler
 app.use('/api/recurring', recurringRoutes);   // ✅ CORRECT! Before error handler
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/currency', currencyRoutes);
 
 // Error handling middleware (MUST BE LAST)
 app.use(errorHandler);

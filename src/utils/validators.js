@@ -660,3 +660,61 @@ export const validateRecurringUpdate = (req, res, next) => {
   
   next();
 };
+
+export const currencyConversionSchema = Joi.object({
+  amount: Joi.number().positive().required().messages({
+    'number.base': 'Amount must be a number',
+    'number.positive': 'Amount must be positive',
+    'any.required': 'Amount is required'
+  }),
+  from: Joi.string()
+    .length(3)
+    .uppercase()
+    .required()
+    .messages({
+      'string.length': 'Currency code must be 3 characters',
+      'any.required': 'From currency is required'
+    }),
+  to: Joi.string()
+    .length(3)
+    .uppercase()
+    .required()
+    .messages({
+      'string.length': 'Currency code must be 3 characters',
+      'any.required': 'To currency is required'
+    })
+});
+
+export const exchangeRateUpdateSchema = Joi.object({
+  rate: Joi.number().positive().required().messages({
+    'number.base': 'Rate must be a number',
+    'number.positive': 'Rate must be positive',
+    'any.required': 'Rate is required'
+  })
+});
+
+// ===========================
+// VALIDATION MIDDLEWARE
+// ===========================
+
+export const validateCurrencyConversion = (req, res, next) => {
+  const { error } = currencyConversionSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      status: 'error',
+      error: error.details[0].message
+    });
+  }
+  next();
+};
+
+export const validateExchangeRateUpdate = (req, res, next) => {
+  const { error } = exchangeRateUpdateSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      status: 'error',
+      error: error.details[0].message
+    });
+  }
+  next();
+};
