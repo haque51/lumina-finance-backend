@@ -134,6 +134,34 @@ class AuthService {
     try {
       const { currentPassword, newPassword } = passwordData;
 
+      // Get current user session to verify current password
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('No active session found');
+      }
+
+      // Try to sign in with current password to verify it's correct
+      const { data: user } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Verify current password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (verifyError) {
+        throw new Error('Current password is incorrect');
+      }
+
       // Update password in Supabase Auth
       const { error } = await supabase.auth.updateUser({
         password: newPassword

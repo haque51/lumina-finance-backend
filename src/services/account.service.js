@@ -215,6 +215,22 @@ class AccountService {
         summary.by_type[account.type].total_balance += account.current_balance;
       });
 
+// Group by currency
+      const by_currency = {};
+      accounts.forEach(account => {
+        if (!by_currency[account.currency]) {
+          by_currency[account.currency] = {
+            count: 0,
+            total_balance: 0
+          };
+        }
+        by_currency[account.currency].count++;
+        by_currency[account.currency].total_balance += account.current_balance;
+      });
+
+      // Add by_currency to summary object
+      summary.by_currency = by_currency;
+
       return summary;
     } catch (error) {
       throw error;

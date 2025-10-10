@@ -27,9 +27,6 @@ class AuthController {
   async refresh(req, res) {
     try {
       const { refreshToken } = req.body;
-      if (!refreshToken) {
-        return errorResponse(res, 'Refresh token is required', 400);
-      }
       const result = await authService.refreshToken(refreshToken);
       return successResponse(res, result, 'Token refreshed successfully');
     } catch (error) {
@@ -40,8 +37,9 @@ class AuthController {
 
   async logout(req, res) {
     try {
-      await authService.logout(req.user.id);
-      return successResponse(res, null, 'Logout successful');
+      const userId = req.user.id;
+      await authService.logout(userId);
+      return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
       return errorResponse(res, error.message, 500);
@@ -50,17 +48,31 @@ class AuthController {
 
   async changePassword(req, res) {
     try {
-      await authService.changePassword(req.user.id, req.body);
+      const userId = req.user.id;
+      const { currentPassword, newPassword } = req.body;
+
+      const result = await authService.changePassword(userId, { 
+        currentPassword, 
+        newPassword 
+      });
+
       return successResponse(res, null, 'Password changed successfully');
     } catch (error) {
       console.error('Change password error:', error);
+      
+      // Return 401 if current password is incorrect
+      if (error.message === 'Current password is incorrect') {
+        return errorResponse(res, error.message, 401);
+      }
+      
       return errorResponse(res, error.message, 400);
     }
   }
 
   async me(req, res) {
     try {
-      const user = await authService.getCurrentUser(req.user.id);
+      const userId = req.user.id;
+      const user = await authService.getCurrentUser(userId);
       return successResponse(res, user, 'User retrieved successfully');
     } catch (error) {
       console.error('Get user error:', error);
