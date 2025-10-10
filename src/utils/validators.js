@@ -11,7 +11,9 @@ const registrationSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
     }),
-  name: Joi.string().min(2).max(100).optional()
+  name: Joi.string().min(2).max(100).required(),
+  base_currency: Joi.string().length(3).uppercase().required(),
+  enabled_currencies: Joi.array().items(Joi.string().length(3).uppercase()).min(1).required()
 });
 
 const loginSchema = Joi.object({
