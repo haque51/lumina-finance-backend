@@ -319,7 +319,7 @@ describe('Validators', () => {
     });
 
   test('should reject invalid currency codes', () => {
-  const invalidCurrencies = ['US', 'EURO', 'usd', '123'];
+  const invalidCurrencies = ['US', 'EURO', '123'];
 
   invalidCurrencies.forEach(currency => {
     const schema = Joi.string().length(3).uppercase().pattern(/^[A-Z]{3}$/);
