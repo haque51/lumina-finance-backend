@@ -116,7 +116,7 @@ describe('Accounts Endpoints Integration Tests', () => {
         .send(accountData)
         .expect(201);
 
-      expect(response.body.data.balance).toBe(-500);
+      expect(response.body.data.current_balance).toBe(-500);
     });
   });
 
@@ -320,7 +320,7 @@ describe('Accounts Endpoints Integration Tests', () => {
 
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toHaveProperty('total_accounts');
-      expect(response.body.data).toHaveProperty('total_balance');
+     expect(response.body.data).toHaveProperty('net_worth');
       expect(response.body.data).toHaveProperty('by_type');
       expect(response.body.data).toHaveProperty('by_currency');
     });
@@ -341,7 +341,8 @@ describe('Accounts Endpoints Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty('balance');
+      expect(response.body.data).toHaveProperty('current_balance');
+expect(response.body.data).toHaveProperty('opening_balance');
       // Opening balance should be stored but might not be exposed
     });
 
