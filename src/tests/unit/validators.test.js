@@ -318,13 +318,13 @@ describe('Validators', () => {
       });
     });
 
-    test('should reject invalid currency codes', () => {
-      const invalidCurrencies = ['US', 'EURO', 'usd', '123'];
+  test('should reject invalid currency codes', () => {
+  const invalidCurrencies = ['US', 'EURO', 'usd', '123'];
 
-      invalidCurrencies.forEach(currency => {
-        const schema = Joi.string().length(3).uppercase();
-        const { error } = schema.validate(currency);
-        expect(error).toBeDefined();
+  invalidCurrencies.forEach(currency => {
+    const schema = Joi.string().length(3).uppercase().pattern(/^[A-Z]{3}$/);
+    const { error } = schema.validate(currency);
+    expect(error).toBeDefined();
       });
     });
   });
