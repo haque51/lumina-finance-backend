@@ -37,7 +37,8 @@ export const createTestUser = (overrides = {}) => ({
 export const createTestAccount = (overrides = {}) => ({
   name: 'Test Checking Account',
   type: 'checking',
-  balance: 1000,
+  institution: 'Test Bank',        // ✅ Added
+  opening_balance: 1000,           // ✅ Changed from "balance"
   currency: 'USD',
   is_active: true,
   ...overrides,
