@@ -22,6 +22,9 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import currencyRoutes from './routes/currency.routes.js';
 
 const app = express();
+// Trust proxy - Required for Render, Railway, Heroku, etc.
+// This allows Express to read X-Forwarded-* headers from reverse proxies
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
