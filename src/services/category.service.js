@@ -203,9 +203,13 @@ class CategoryService {
         .eq('user_id', userId)
         .is('deleted_at', null);
 
-      if (subcategories && subcategories.length > 0) {
-        throw new Error('Cannot delete category with subcategories');
-      }
+     // CASCADE DELETE: First delete all subcategories recursively
+if (subcategories && subcategories.length > 0) {
+  console.log(`Category ${categoryId} has ${subcategories.length} subcategories - deleting them first`);
+  for (const subcategory of subcategories) {
+    await this.deleteCategory(userId, subcategory.id);
+  }
+}
 
       // Check if category has transactions
       const { count } = await supabase
