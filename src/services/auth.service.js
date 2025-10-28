@@ -10,11 +10,12 @@ class AuthService {
       const { email, password, name } = userData;
 
       // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+    const { data: existingUser } = await supabase
+  .from('users')
+  .select('id')
+  .eq('email', email)
+  .is('deleted_at', null)
+  .single();
 
       if (existingUser) {
         throw new Error('User already exists');
@@ -76,10 +77,11 @@ class AuthService {
 
       // Get user from our table
       const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+  .from('users')
+  .select('*')
+  .eq('id', authData.user.id)
+  .is('deleted_at', null)
+  .single();
 
       if (userError) throw userError;
 
@@ -101,11 +103,12 @@ class AuthService {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', decoded.id)
-        .single();
+     const { data: user, error } = await supabase
+  .from('users')
+  .select('*')
+  .eq('id', decoded.id)
+  .is('deleted_at', null)
+  .single();
 
       if (error) throw new Error('Invalid refresh token');
 
@@ -143,10 +146,11 @@ class AuthService {
 
       // Try to sign in with current password to verify it's correct
       const { data: user } = await supabase
-        .from('users')
-        .select('email')
-        .eq('id', userId)
-        .single();
+  .from('users')
+  .select('email')
+  .eq('id', userId)
+  .is('deleted_at', null)
+  .single();
 
       if (!user) {
         throw new Error('User not found');
@@ -178,10 +182,11 @@ class AuthService {
   async getCurrentUser(userId) {
     try {
       const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+  .from('users')
+  .select('*')
+  .eq('id', userId)
+  .is('deleted_at', null)
+  .single();
 
       if (error) throw error;
 
