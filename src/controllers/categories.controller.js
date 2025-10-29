@@ -17,7 +17,9 @@ class CategoriesController {
   async getCategories(req, res) {
     try {
       const filters = {
-        type: req.query.type
+        type: req.query.type,
+        parent_id: req.query.parent_id,
+        hierarchical: req.query.hierarchical === 'true'
       };
       const categories = await categoryService.getCategories(req.user.id, filters);
       return successResponse(res, categories, 'Categories retrieved successfully');
