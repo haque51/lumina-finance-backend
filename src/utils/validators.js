@@ -82,20 +82,10 @@ const transactionSchema = Joi.object({
 
 const transactionUpdateSchema = Joi.object({
   date: Joi.date().optional(),
-  type: Joi.string().valid('income', 'expense', 'transfer').optional(),
-  account_id: Joi.string().uuid().optional(),
   payee: Joi.string().allow('', null).optional(),
-  description: Joi.string().allow('', null).optional(),
   category_id: Joi.string().uuid().allow(null).optional(),
-  subcategory_id: Joi.string().uuid().allow('', null).optional(),
   amount: Joi.number().optional(),
-  currency: Joi.string().length(3).optional(),
-  memo: Joi.string().allow('', null).optional(),
-  notes: Joi.string().allow('', null).optional(),
-  receipt_url: Joi.string().uri().allow('', null).optional(),
-  exchange_rate: Joi.number().positive().optional(),
-  amount_eur: Joi.number().optional(),
-  to_account_id: Joi.string().uuid().allow(null).optional()
+  memo: Joi.string().allow('', null).optional()
 }).min(1);
 
 // ============= CATEGORY VALIDATORS =============
