@@ -58,31 +58,46 @@ class CategoryService {
         query = query.eq('type', filters.type);
       }
 
+      // Support filtering by parent_id
+      if (filters.parent_id !== undefined) {
+        if (filters.parent_id === 'null' || filters.parent_id === null) {
+          query = query.is('parent_id', null);
+        } else {
+          query = query.eq('parent_id', filters.parent_id);
+        }
+      }
+
       const { data: categories, error } = await query;
 
       if (error) throw error;
 
-      // Build hierarchy
-      const categoryMap = new Map();
-      const rootCategories = [];
+      // Return hierarchical structure if requested, otherwise return flat list
+      if (filters.hierarchical) {
+        // Build hierarchy
+        const categoryMap = new Map();
+        const rootCategories = [];
 
-      categories.forEach(cat => {
-        categoryMap.set(cat.id, { ...cat, subcategories: [] });
-      });
+        categories.forEach(cat => {
+          categoryMap.set(cat.id, { ...cat, subcategories: [] });
+        });
 
-      categories.forEach(cat => {
-        const category = categoryMap.get(cat.id);
-        if (cat.parent_id) {
-          const parent = categoryMap.get(cat.parent_id);
-          if (parent) {
-            parent.subcategories.push(category);
+        categories.forEach(cat => {
+          const category = categoryMap.get(cat.id);
+          if (cat.parent_id) {
+            const parent = categoryMap.get(cat.parent_id);
+            if (parent) {
+              parent.subcategories.push(category);
+            }
+          } else {
+            rootCategories.push(category);
           }
-        } else {
-          rootCategories.push(category);
-        }
-      });
+        });
 
-      return rootCategories;
+        return rootCategories;
+      }
+
+      // Return flat list by default (all categories including subcategories)
+      return categories;
     } catch (error) {
       throw error;
     }
