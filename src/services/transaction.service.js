@@ -218,7 +218,7 @@ class TransactionService {
         throw new Error('Transaction not found');
       }
 
-      // Revert old balance changes
+     // Revert old balance changes
       if (existing.type === 'transfer') {
         await this.updateAccountBalance(userId, existing.from_account_id, existing.amount);
         await this.updateAccountBalance(userId, existing.to_account_id, -existing.amount);
@@ -226,19 +226,8 @@ class TransactionService {
         await this.updateAccountBalance(userId, existing.account_id, -existing.amount);
       }
 
-         // Normalize field names (frontend uses description/notes, backend uses payee/memo)
-      const normalizedUpdates = { ...updates };
-      if (updates.description !== undefined) {
-        normalizedUpdates.payee = updates.description;
-        delete normalizedUpdates.description;
-      }
-      if (updates.notes !== undefined) {
-        normalizedUpdates.memo = updates.notes;
-        delete normalizedUpdates.notes;
-      }
-
       // Apply new values
-      const newAmount = normalizedUpdates.amount !== undefined ? parseFloat(normalizedUpdates.amount) : existing.amount;
+      const newAmount = updates.amount !== undefined ? parseFloat(updates.amount) : existing.amount;
       const finalAmount = existing.type === 'expense' && newAmount > 0 ? -Math.abs(newAmount) :
                          existing.type === 'income' && newAmount < 0 ? Math.abs(newAmount) : newAmount;
 
@@ -246,7 +235,7 @@ class TransactionService {
       const { data: transaction, error } = await supabase
         .from('transactions')
         .update({
-          ...normalizedUpdates,
+          ...updates,
           amount: finalAmount,
           updated_at: new Date().toISOString()
         })
