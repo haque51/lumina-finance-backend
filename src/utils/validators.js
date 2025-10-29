@@ -73,11 +73,11 @@ const transactionSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  payee: Joi.string().optional(),
-  category_id: Joi.string().uuid().optional(),
+  payee: Joi.string().allow('', null).optional(),  // ✅ Now allows empty strings
+  category_id: Joi.string().uuid().allow(null).optional(),
   amount: Joi.number().required(),
   currency: Joi.string().length(3).required(),
-  memo: Joi.string().optional()
+  memo: Joi.string().allow('', null).optional()  // ✅ Now allows empty strings
 });
 
 const transactionUpdateSchema = Joi.object({
