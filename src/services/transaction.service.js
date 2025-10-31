@@ -389,5 +389,5 @@ class TransactionService {
       console.error('Error updating account balance:', error);
     }
   }
-
+}
 export default new TransactionService();
