@@ -62,7 +62,7 @@ app.get('/', (req, res) => {
       categories: '/api/categories',
       budgets: '/api/budgets',
       goals: '/api/goals',
-      recurring: '/api/recurring'
+      recurring: '/api/recurring',
       analytics: '/api/analytics',
       currency: '/api/currency',
       exchangeRates: '/api/exchange-rates'  // ADD THIS LINE
