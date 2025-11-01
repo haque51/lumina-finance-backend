@@ -35,19 +35,31 @@ class TransactionService {
       }
 
       // Create transaction
+   // Prepare transaction data
+      const transactionPayload = {
+        user_id: userId,
+        date: transactionData.date,
+        type: transactionData.type,
+        account_id: transactionData.account_id,
+        payee: transactionData.payee,
+        category_id: transactionData.category_id,
+        amount: amount,
+        currency: transactionData.currency,
+        memo: transactionData.memo
+      };
+
+      // Add exchange rate data if provided (for multi-currency support)
+      if (transactionData.amount_eur !== undefined) {
+        transactionPayload.amount_eur = transactionData.amount_eur;
+      }
+      if (transactionData.exchange_rate !== undefined) {
+        transactionPayload.exchange_rate = transactionData.exchange_rate;
+      }
+
+      // Create transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert({
-          user_id: userId,
-          date: transactionData.date,
-          type: transactionData.type,
-          account_id: transactionData.account_id,
-          payee: transactionData.payee,
-          category_id: transactionData.category_id,
-          amount: amount,
-          currency: transactionData.currency,
-          memo: transactionData.memo
-        })
+        .insert(transactionPayload)
         .select()
         .single();
 
@@ -88,18 +100,30 @@ class TransactionService {
       const amount = Math.abs(parseFloat(transferData.amount));
 
       // Create transfer transaction
+   // Prepare transfer data
+      const transferPayload = {
+        user_id: userId,
+        date: transferData.date,
+        type: 'transfer',
+        from_account_id: transferData.from_account_id,
+        to_account_id: transferData.to_account_id,
+        amount: amount,
+        currency: transferData.currency,
+        memo: transferData.memo
+      };
+
+      // Add exchange rate data if provided (for multi-currency transfers)
+      if (transferData.amount_eur !== undefined) {
+        transferPayload.amount_eur = transferData.amount_eur;
+      }
+      if (transferData.exchange_rate !== undefined) {
+        transferPayload.exchange_rate = transferData.exchange_rate;
+      }
+
+      // Create transfer transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert({
-          user_id: userId,
-          date: transferData.date,
-          type: 'transfer',
-          from_account_id: transferData.from_account_id,
-          to_account_id: transferData.to_account_id,
-          amount: amount,
-          currency: transferData.currency,
-          memo: transferData.memo
-        })
+        .insert(transferPayload)
         .select()
         .single();
 
@@ -203,15 +227,20 @@ class TransactionService {
     }
   }
 
-  async updateTransaction(userId, transactionId, updates) {
-    try {
-      // Get existing transaction
-      const { data: existing } = await supabase
+ // Prepare update payload
+      const updatePayload = {
+        ...updates,
+        amount: finalAmount,
+        updated_at: new Date().toISOString()
+      };
+
+      // Update transaction
+      const { data: transaction, error } = await supabase
         .from('transactions')
-        .select('*')
+        .update(updatePayload)
         .eq('id', transactionId)
         .eq('user_id', userId)
-        .is('deleted_at', null)
+        .select()
         .single();
 
       if (!existing) {
