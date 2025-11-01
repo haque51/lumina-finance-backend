@@ -20,6 +20,7 @@ import recurringRoutes from './routes/recurring.routes.js';
 
 import analyticsRoutes from './routes/analytics.routes.js';
 import currencyRoutes from './routes/currency.routes.js';
+import exchangeRatesRoutes from './routes/exchangeRates.routes.js';  // ADD THIS LINE
 
 const app = express();
 // Trust proxy - Required for Render, Railway, Heroku, etc.
@@ -62,6 +63,9 @@ app.get('/', (req, res) => {
       budgets: '/api/budgets',
       goals: '/api/goals',
       recurring: '/api/recurring'
+      analytics: '/api/analytics',
+      currency: '/api/currency',
+      exchangeRates: '/api/exchange-rates'  // ADD THIS LINE
     }
   });
 });
@@ -85,7 +89,9 @@ app.use('/api/goals', goalsRoutes);           // ✅ CORRECT! Before error handl
 app.use('/api/recurring', recurringRoutes);   // ✅ CORRECT! Before error handler
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/currency', currencyRoutes);
-
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/currency', currencyRoutes);
+app.use('/api/exchange-rates', exchangeRatesRoutes);  // ADD THIS LINE
 // Error handling middleware (MUST BE LAST)
 app.use(errorHandler);
 
