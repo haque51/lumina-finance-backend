@@ -34,7 +34,6 @@ class TransactionService {
         amount = Math.abs(amount);
       }
 
-      // Create transaction
    // Prepare transaction data
       const transactionPayload = {
         user_id: userId,
@@ -99,8 +98,7 @@ class TransactionService {
 
       const amount = Math.abs(parseFloat(transferData.amount));
 
-      // Create transfer transaction
-   // Prepare transfer data
+     // Prepare transfer data
       const transferPayload = {
         user_id: userId,
         date: transferData.date,
@@ -227,20 +225,17 @@ class TransactionService {
     }
   }
 
- // Prepare update payload
-      const updatePayload = {
-        ...updates,
-        amount: finalAmount,
-        updated_at: new Date().toISOString()
-      };
+ }
 
-      // Update transaction
-      const { data: transaction, error } = await supabase
+  async updateTransaction(userId, transactionId, updates) {
+    try {
+      // Get existing transaction
+      const { data: existing } = await supabase
         .from('transactions')
-        .update(updatePayload)
+        .select('*')
         .eq('id', transactionId)
         .eq('user_id', userId)
-        .select()
+        .is('deleted_at', null)
         .single();
 
       if (!existing) {
@@ -260,14 +255,17 @@ class TransactionService {
       const finalAmount = existing.type === 'expense' && newAmount > 0 ? -Math.abs(newAmount) :
                          existing.type === 'income' && newAmount < 0 ? Math.abs(newAmount) : newAmount;
 
+      // Prepare update payload
+      const updatePayload = {
+        ...updates,
+        amount: finalAmount,
+        updated_at: new Date().toISOString()
+      };
+
       // Update transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .update({
-          ...updates,
-          amount: finalAmount,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', transactionId)
         .eq('user_id', userId)
         .select()
