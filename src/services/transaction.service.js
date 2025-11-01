@@ -225,8 +225,6 @@ class TransactionService {
     }
   }
 
- }
-
   async updateTransaction(userId, transactionId, updates) {
     try {
       // Get existing transaction
