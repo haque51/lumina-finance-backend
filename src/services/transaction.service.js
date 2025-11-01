@@ -359,35 +359,35 @@ class TransactionService {
   }
 
  async updateAccountBalance(userId, accountId, amountChange) {
-    try {
-      const { data: account } = await supabase
-        .from('accounts')
-        .select('current_balance, type')  // ← Changed: added 'type'
-        .eq('id', accountId)
-        .eq('user_id', userId)
-        .single();
+  try {
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('current_balance, type')
+      .eq('id', accountId)
+      .eq('user_id', userId)
+      .single();
 
-      if (!account) return;
+    if (!account) return;
 
-      // ← NEW: For debt accounts (loans, credit cards), balance works inversely:
-      // ← NEW: - When money comes IN (payment), balance DECREASES (debt is reduced)
-      // ← NEW: - When money goes OUT (borrowing), balance INCREASES (debt grows)
-      const isDebtAccount = account.type === 'loan' || account.type === 'credit_card';
-      const adjustedAmountChange = isDebtAccount ? -parseFloat(amountChange) : parseFloat(amountChange);
+    // For debt accounts (loans, credit cards), balance works inversely:
+    // - When money comes IN (payment), balance DECREASES (debt is reduced)
+    // - When money goes OUT (borrowing), balance INCREASES (debt grows)
+    const isDebtAccount = account.type === 'loan' || account.type === 'credit_card';
+    const adjustedAmountChange = isDebtAccount ? -parseFloat(amountChange) : parseFloat(amountChange);
 
-      const newBalance = parseFloat(account.current_balance) + adjustedAmountChange;  // ← Changed: uses adjustedAmountChange
+    const newBalance = parseFloat(account.current_balance) + adjustedAmountChange;
 
-      await supabase
-        .from('accounts')
-        .update({
-          current_balance: newBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', accountId)
-        .eq('user_id', userId);
-    } catch (error) {
-      console.error('Error updating account balance:', error);
-    }
+    await supabase
+      .from('accounts')
+      .update({
+        current_balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', accountId)
+      .eq('user_id', userId);
+  } catch (error) {
+    console.error('Error updating account balance:', error);
   }
+}
 }
 export default new TransactionService();
