@@ -13,7 +13,8 @@ const registrationSchema = Joi.object({
     }),
   name: Joi.string().min(2).max(100).required(),
   base_currency: Joi.string().length(3).uppercase().required(),
-  enabled_currencies: Joi.array().items(Joi.string().length(3).uppercase()).min(1).required()
+  enabled_currencies: Joi.array().items(Joi.string().length(3).uppercase()).min(1).required(),
+  subscription_tier: Joi.string().valid('basic', 'premium').default('basic').optional()
 });
 
 const loginSchema = Joi.object({
