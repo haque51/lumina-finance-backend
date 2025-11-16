@@ -7,7 +7,7 @@ import { supabase } from '../config/database.js';
 class AuthService {
   async register(userData) {
     try {
-      const { email, password, name } = userData;
+      const { email, password, name, subscription_tier = 'basic' } = userData;
 
       // Check if user already exists
     const { data: existingUser } = await supabase
@@ -34,7 +34,7 @@ class AuthService {
 
       if (authError) throw authError;
 
-      // Insert user into our users table
+      // Insert user into our users table with subscription_tier
       const { data: user, error: userError } = await supabase
         .from('users')
         .insert({
@@ -42,7 +42,8 @@ class AuthService {
           email,
           name: name || email.split('@')[0],
           base_currency: 'EUR',
-          secondary_currencies: ['USD', 'BDT']
+          secondary_currencies: ['USD', 'BDT'],
+          subscription_tier: subscription_tier // Add subscription tier
         })
         .select()
         .single();
@@ -187,6 +188,43 @@ class AuthService {
   .eq('id', userId)
   .is('deleted_at', null)
   .single();
+
+      if (error) throw error;
+
+      return this.sanitizeUser(user);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateUser(userId, updates) {
+    try {
+      // Only allow updating specific fields
+      const allowedFields = [
+        'name',
+        'base_currency',
+        'secondary_currencies',
+        'subscription_tier'
+      ];
+
+      // Filter out any fields not in allowedFields
+      const filteredUpdates = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key)) {
+          filteredUpdates[key] = value;
+        }
+      }
+
+      if (Object.keys(filteredUpdates).length === 0) {
+        throw new Error('No valid fields to update');
+      }
+
+      const { data: user, error } = await supabase
+        .from('users')
+        .update(filteredUpdates)
+        .eq('id', userId)
+        .select()
+        .single();
 
       if (error) throw error;
 
