@@ -7,10 +7,11 @@ class AccountService {
     try {
       // Validate currency is enabled for user
       const { data: user } = await supabase
-        .from('users')
-        .select('base_currency, secondary_currencies')
-        .eq('id', userId)
-        .single();
+  .from('users')
+  .select('base_currency, secondary_currencies')
+  .eq('id', userId)
+  .is('deleted_at', null)
+  .single();
 
       const enabledCurrencies = [user.base_currency, ...(user.secondary_currencies || [])];
       if (!enabledCurrencies.includes(accountData.currency)) {
@@ -124,10 +125,11 @@ class AccountService {
       // Validate currency if being updated
       if (updates.currency && updates.currency !== existing.currency) {
         const { data: user } = await supabase
-          .from('users')
-          .select('base_currency, secondary_currencies')
-          .eq('id', userId)
-          .single();
+  .from('users')
+  .select('base_currency, secondary_currencies')
+  .eq('id', userId)
+  .is('deleted_at', null)
+  .single();
 
         const enabledCurrencies = [user.base_currency, ...(user.secondary_currencies || [])];
         if (!enabledCurrencies.includes(updates.currency)) {

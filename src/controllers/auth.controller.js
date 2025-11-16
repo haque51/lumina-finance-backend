@@ -79,6 +79,19 @@ class AuthController {
       return errorResponse(res, error.message, 500);
     }
   }
+
+  async updateProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      const updates = req.body;
+
+      const user = await authService.updateUser(userId, updates);
+      return successResponse(res, user, 'Profile updated successfully');
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return errorResponse(res, error.message, 400);
+    }
+  }
 }
 
 export default new AuthController();

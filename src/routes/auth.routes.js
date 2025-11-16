@@ -49,4 +49,11 @@ router.post('/change-password', authenticateToken, authController.changePassword
  */
 router.get('/me', authenticateToken, authController.me);
 
+/**
+ * @route   PATCH /api/auth/profile
+ * @desc    Update user profile (including subscription tier)
+ * @access  Private
+ */
+router.patch('/profile', authenticateToken, authController.updateProfile);
+
 export default router;

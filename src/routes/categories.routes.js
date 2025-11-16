@@ -20,7 +20,8 @@ router.post(
  * @route   GET /api/categories
  * @desc    Get all categories with optional filters
  * @access  Private
- * @query   type (income/expense), parent_id (uuid or null)
+ * @query   type (income/expense), parent_id (uuid or 'null'), hierarchical (true/false)
+ * @note    Returns flat list by default. Use hierarchical=true for nested structure.
  */
 router.get('/', authenticateToken, categoriesController.getCategories);
 

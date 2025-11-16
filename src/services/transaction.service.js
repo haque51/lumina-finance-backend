@@ -34,20 +34,31 @@ class TransactionService {
         amount = Math.abs(amount);
       }
 
+   // Prepare transaction data
+      const transactionPayload = {
+        user_id: userId,
+        date: transactionData.date,
+        type: transactionData.type,
+        account_id: transactionData.account_id,
+        payee: transactionData.payee,
+        category_id: transactionData.category_id,
+        amount: amount,
+        currency: transactionData.currency,
+        memo: transactionData.memo
+      };
+
+      // Add exchange rate data if provided (for multi-currency support)
+      if (transactionData.amount_eur !== undefined) {
+        transactionPayload.amount_eur = transactionData.amount_eur;
+      }
+      if (transactionData.exchange_rate !== undefined) {
+        transactionPayload.exchange_rate = transactionData.exchange_rate;
+      }
+
       // Create transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert({
-          user_id: userId,
-          date: transactionData.date,
-          type: transactionData.type,
-          account_id: transactionData.account_id,
-          payee: transactionData.payee,
-          category_id: transactionData.category_id,
-          amount: amount,
-          currency: transactionData.currency,
-          memo: transactionData.memo
-        })
+        .insert(transactionPayload)
         .select()
         .single();
 
@@ -87,19 +98,30 @@ class TransactionService {
 
       const amount = Math.abs(parseFloat(transferData.amount));
 
+     // Prepare transfer data
+      const transferPayload = {
+        user_id: userId,
+        date: transferData.date,
+        type: 'transfer',
+        from_account_id: transferData.from_account_id,
+        to_account_id: transferData.to_account_id,
+        amount: amount,
+        currency: transferData.currency,
+        memo: transferData.memo
+      };
+
+      // Add exchange rate data if provided (for multi-currency transfers)
+      if (transferData.amount_eur !== undefined) {
+        transferPayload.amount_eur = transferData.amount_eur;
+      }
+      if (transferData.exchange_rate !== undefined) {
+        transferPayload.exchange_rate = transferData.exchange_rate;
+      }
+
       // Create transfer transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .insert({
-          user_id: userId,
-          date: transferData.date,
-          type: 'transfer',
-          from_account_id: transferData.from_account_id,
-          to_account_id: transferData.to_account_id,
-          amount: amount,
-          currency: transferData.currency,
-          memo: transferData.memo
-        })
+        .insert(transferPayload)
         .select()
         .single();
 
@@ -218,7 +240,7 @@ class TransactionService {
         throw new Error('Transaction not found');
       }
 
-      // Revert old balance changes
+     // Revert old balance changes
       if (existing.type === 'transfer') {
         await this.updateAccountBalance(userId, existing.from_account_id, existing.amount);
         await this.updateAccountBalance(userId, existing.to_account_id, -existing.amount);
@@ -228,17 +250,20 @@ class TransactionService {
 
       // Apply new values
       const newAmount = updates.amount !== undefined ? parseFloat(updates.amount) : existing.amount;
-      const finalAmount = existing.type === 'expense' && newAmount > 0 ? -Math.abs(newAmount) : 
+      const finalAmount = existing.type === 'expense' && newAmount > 0 ? -Math.abs(newAmount) :
                          existing.type === 'income' && newAmount < 0 ? Math.abs(newAmount) : newAmount;
+
+      // Prepare update payload
+      const updatePayload = {
+        ...updates,
+        amount: finalAmount,
+        updated_at: new Date().toISOString()
+      };
 
       // Update transaction
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .update({
-          ...updates,
-          amount: finalAmount,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', transactionId)
         .eq('user_id', userId)
         .select()
@@ -358,31 +383,36 @@ class TransactionService {
     }
   }
 
-  async updateAccountBalance(userId, accountId, amountChange) {
-    try {
-      const { data: account } = await supabase
-        .from('accounts')
-        .select('current_balance')
-        .eq('id', accountId)
-        .eq('user_id', userId)
-        .single();
+ async updateAccountBalance(userId, accountId, amountChange) {
+  try {
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('current_balance, type')
+      .eq('id', accountId)
+      .eq('user_id', userId)
+      .single();
 
-      if (!account) return;
+    if (!account) return;
 
-      const newBalance = parseFloat(account.current_balance) + parseFloat(amountChange);
+    // For debt accounts (loans, credit cards), balance works inversely:
+    // - When money comes IN (payment), balance DECREASES (debt is reduced)
+    // - When money goes OUT (borrowing), balance INCREASES (debt grows)
+    const isDebtAccount = account.type === 'loan' || account.type === 'credit_card';
+    const adjustedAmountChange = isDebtAccount ? -parseFloat(amountChange) : parseFloat(amountChange);
 
-      await supabase
-        .from('accounts')
-        .update({
-          current_balance: newBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', accountId)
-        .eq('user_id', userId);
-    } catch (error) {
-      console.error('Error updating account balance:', error);
-    }
+    const newBalance = parseFloat(account.current_balance) + adjustedAmountChange;
+
+    await supabase
+      .from('accounts')
+      .update({
+        current_balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', accountId)
+      .eq('user_id', userId);
+  } catch (error) {
+    console.error('Error updating account balance:', error);
   }
 }
-
+}
 export default new TransactionService();

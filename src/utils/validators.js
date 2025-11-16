@@ -73,19 +73,23 @@ const transactionSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional()
   }),
-  payee: Joi.string().optional(),
-  category_id: Joi.string().uuid().optional(),
+  payee: Joi.string().allow('', null).optional(),  // ✅ Now allows empty strings
+  category_id: Joi.string().uuid().allow(null).optional(),
   amount: Joi.number().required(),
   currency: Joi.string().length(3).required(),
-  memo: Joi.string().optional()
+  amount_eur: Joi.number().optional(),
+  exchange_rate: Joi.number().positive().optional(),
+  memo: Joi.string().allow('', null).optional()  // ✅ Now allows empty strings
 });
 
 const transactionUpdateSchema = Joi.object({
   date: Joi.date().optional(),
-  payee: Joi.string().optional(),
-  category_id: Joi.string().uuid().optional(),
+  payee: Joi.string().allow('', null).optional(),
+  category_id: Joi.string().uuid().allow(null).optional(),
   amount: Joi.number().optional(),
-  memo: Joi.string().optional()
+  amount_eur: Joi.number().optional(),
+  exchange_rate: Joi.number().positive().optional(),
+  memo: Joi.string().allow('', null).optional()
 }).min(1);
 
 // ============= CATEGORY VALIDATORS =============
