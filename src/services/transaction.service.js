@@ -9,7 +9,7 @@ class TransactionService {
         return await this.createTransfer(userId, transactionData);
       }
 
-      // Validate account and currency
+      // Validate account and currencies
       const { data: account } = await supabase
         .from('accounts')
         .select('currency')
