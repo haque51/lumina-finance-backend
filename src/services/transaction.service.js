@@ -9,7 +9,7 @@ class TransactionService {
         return await this.createTransfer(userId, transactionData);
       }
 
-      // Validate account and currency
+      // Validate account and currencies
       const { data: account } = await supabase
         .from('accounts')
         .select('currency')
@@ -64,8 +64,8 @@ class TransactionService {
 
       if (error) throw error;
 
-      // Update account balance
-      await this.updateAccountBalance(userId, transactionData.account_id, amount);
+      // Update account balance (only if transaction is not historical)
+      await this.updateAccountBalance(userId, transactionData.account_id, amount, transactionData.date);
 
       return transaction;
     } catch (error) {
@@ -127,9 +127,9 @@ class TransactionService {
 
       if (error) throw error;
 
-      // Update both account balances
-      await this.updateAccountBalance(userId, transferData.from_account_id, -amount);
-      await this.updateAccountBalance(userId, transferData.to_account_id, amount);
+      // Update both account balances (only if transaction is not historical)
+      await this.updateAccountBalance(userId, transferData.from_account_id, -amount, transferData.date);
+      await this.updateAccountBalance(userId, transferData.to_account_id, amount, transferData.date);
 
       return transaction;
     } catch (error) {
@@ -240,12 +240,12 @@ class TransactionService {
         throw new Error('Transaction not found');
       }
 
-     // Revert old balance changes
+     // Revert old balance changes (only if old transaction was not historical)
       if (existing.type === 'transfer') {
-        await this.updateAccountBalance(userId, existing.from_account_id, existing.amount);
-        await this.updateAccountBalance(userId, existing.to_account_id, -existing.amount);
+        await this.updateAccountBalance(userId, existing.from_account_id, existing.amount, existing.date);
+        await this.updateAccountBalance(userId, existing.to_account_id, -existing.amount, existing.date);
       } else {
-        await this.updateAccountBalance(userId, existing.account_id, -existing.amount);
+        await this.updateAccountBalance(userId, existing.account_id, -existing.amount, existing.date);
       }
 
       // Apply new values
@@ -271,12 +271,13 @@ class TransactionService {
 
       if (error) throw error;
 
-      // Apply new balance changes
+      // Apply new balance changes (only if new transaction is not historical)
+      const newDate = updates.date !== undefined ? updates.date : existing.date;
       if (transaction.type === 'transfer') {
-        await this.updateAccountBalance(userId, transaction.from_account_id, -transaction.amount);
-        await this.updateAccountBalance(userId, transaction.to_account_id, transaction.amount);
+        await this.updateAccountBalance(userId, transaction.from_account_id, -transaction.amount, newDate);
+        await this.updateAccountBalance(userId, transaction.to_account_id, transaction.amount, newDate);
       } else {
-        await this.updateAccountBalance(userId, transaction.account_id, transaction.amount);
+        await this.updateAccountBalance(userId, transaction.account_id, transaction.amount, newDate);
       }
 
       return transaction;
@@ -300,12 +301,12 @@ class TransactionService {
         throw new Error('Transaction not found');
       }
 
-      // Revert balance changes
+      // Revert balance changes (only if transaction was not historical)
       if (transaction.type === 'transfer') {
-        await this.updateAccountBalance(userId, transaction.from_account_id, transaction.amount);
-        await this.updateAccountBalance(userId, transaction.to_account_id, -transaction.amount);
+        await this.updateAccountBalance(userId, transaction.from_account_id, transaction.amount, transaction.date);
+        await this.updateAccountBalance(userId, transaction.to_account_id, -transaction.amount, transaction.date);
       } else {
-        await this.updateAccountBalance(userId, transaction.account_id, -transaction.amount);
+        await this.updateAccountBalance(userId, transaction.account_id, -transaction.amount, transaction.date);
       }
 
       // Soft delete
@@ -383,36 +384,59 @@ class TransactionService {
     }
   }
 
- async updateAccountBalance(userId, accountId, amountChange) {
-  try {
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('current_balance, type')
-      .eq('id', accountId)
-      .eq('user_id', userId)
-      .single();
+  /**
+   * Update account balance only if transaction is not historical
+   * Historical transactions (dated before today) should not affect current_balance
+   * @param {string} userId - User ID
+   * @param {string} accountId - Account ID
+   * @param {number} amountChange - Amount to add/subtract
+   * @param {string} transactionDate - Transaction date (YYYY-MM-DD)
+   */
+  async updateAccountBalance(userId, accountId, amountChange, transactionDate) {
+    try {
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('current_balance, type')
+        .eq('id', accountId)
+        .eq('user_id', userId)
+        .single();
 
-    if (!account) return;
+      if (!account) return;
 
-    // For debt accounts (loans, credit cards), balance works inversely:
-    // - When money comes IN (payment), balance DECREASES (debt is reduced)
-    // - When money goes OUT (borrowing), balance INCREASES (debt grows)
-    const isDebtAccount = account.type === 'loan' || account.type === 'credit_card';
-    const adjustedAmountChange = isDebtAccount ? -parseFloat(amountChange) : parseFloat(amountChange);
+      // Check if transaction is historical (before today)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+      const txDate = new Date(transactionDate);
+      txDate.setHours(0, 0, 0, 0); // Start of transaction day
 
-    const newBalance = parseFloat(account.current_balance) + adjustedAmountChange;
+      // Only update current_balance if transaction is today or in the future
+      if (txDate < today) {
+        console.log(`⏳ Historical transaction detected (${transactionDate}). Skipping current_balance update for account ${accountId}`);
+        return; // Don't update current_balance for historical transactions
+      }
 
-    await supabase
-      .from('accounts')
-      .update({
-        current_balance: newBalance,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', accountId)
-      .eq('user_id', userId);
-  } catch (error) {
-    console.error('Error updating account balance:', error);
+      // For debt accounts (loans, credit cards), balance works inversely:
+      // - When money comes IN (payment), balance DECREASES (debt is reduced)
+      // - When money goes OUT (borrowing), balance INCREASES (debt grows)
+      const isDebtAccount = account.type === 'loan' || account.type === 'credit_card';
+      const adjustedAmountChange = isDebtAccount ? -parseFloat(amountChange) : parseFloat(amountChange);
+
+      const newBalance = parseFloat(account.current_balance) + adjustedAmountChange;
+
+      await supabase
+        .from('accounts')
+        .update({
+          current_balance: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', accountId)
+        .eq('user_id', userId);
+
+      console.log(`✅ Updated current_balance for account ${accountId}: ${account.current_balance} → ${newBalance}`);
+    } catch (error) {
+      console.error('Error updating account balance:', error);
+    }
   }
 }
-}
+
 export default new TransactionService();
